@@ -358,8 +358,8 @@ export class WAMonitoringService {
     this.eventEmitter.on('logout.instance', async (instanceName: string) => {
       this.logger.verbose('logout instance: ' + instanceName);
       try {
-        this.logger.verbose('request cleaning up instance: ' + instanceName);
-        this.cleaningUp(instanceName);
+        //this.logger.verbose('request cleaning up instance: ' + instanceName);
+        //this.cleaningUp(instanceName);
       } finally {
         this.logger.warn(`Instance "${instanceName}" - LOGOUT`);
       }

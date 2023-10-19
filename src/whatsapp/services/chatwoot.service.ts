@@ -980,6 +980,10 @@ export class ChatwootService {
           const state = waInstance?.connectionStatus?.state;
 
           if (state !== 'open') {
+            if (state === 'close') {
+              this.logger.verbose('request cleaning up instance: ' + instance.instanceName);
+              await this.waMonitor.cleaningUp(instance.instanceName);
+            }
             this.logger.verbose('connect to whatsapp');
             const number = command.split(':')[1];
             await waInstance.connectToWhatsapp(number);
