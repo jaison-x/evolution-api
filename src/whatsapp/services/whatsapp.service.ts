@@ -339,6 +339,12 @@ export class WAStartupService {
     this.localChatwoot.import_contacts = data?.import_contacts;
     this.logger.verbose(`Chatwoot import_contacts: ${this.localChatwoot.import_contacts}`);
 
+    this.localChatwoot.import_messages = data?.import_messages;
+    this.logger.verbose(`Chatwoot import_messages: ${this.localChatwoot.import_messages}`);
+
+    this.localChatwoot.days_limit_import_messages = data?.days_limit_import_messages;
+    this.logger.verbose(`Chatwoot days_limit_import_messages: ${this.localChatwoot.days_limit_import_messages}`);
+
     this.logger.verbose('Chatwoot loaded');
   }
 
@@ -353,6 +359,8 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot reopen conversation: ${data.reopen_conversation}`);
     this.logger.verbose(`Chatwoot conversation pending: ${data.conversation_pending}`);
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
+    this.logger.verbose(`Chatwoot import messages: ${data.import_messages}`);
+    this.logger.verbose(`Chatwoot days limit to import messages: ${data.days_limit_import_messages}`);
 
     Object.assign(this.localChatwoot, data);
     this.logger.verbose('Chatwoot set');
@@ -375,6 +383,8 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot reopen conversation: ${data.reopen_conversation}`);
     this.logger.verbose(`Chatwoot conversation pending: ${data.conversation_pending}`);
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
+    this.logger.verbose(`Chatwoot import messages: ${data.import_messages}`);
+    this.logger.verbose(`Chatwoot days limit import messages: ${data.days_limit_import_messages}`);
 
     return data;
   }
@@ -1494,55 +1504,134 @@ export class WAStartupService {
       },
       database: Database,
     ) => {
-      this.logger.verbose('Event received: messaging-history.set');
-      if (isLatest) {
-        this.logger.verbose('isLatest defined as true');
-        const chatsRaw: ChatRaw[] = chats.map((chat) => {
-          return {
-            id: chat.id,
-            owner: this.instance.name,
-            lastMsgTimestamp: chat.lastMessageRecvTimestamp,
-          };
-        });
+      try {
+        this.logger.verbose('Event received: messaging-history.set');
 
-        this.logger.verbose('Sending data to webhook in event CHATS_SET');
-        await this.sendDataWebhook(Events.CHATS_SET, chatsRaw);
+        const importMessagesToCW = this.localChatwoot.import_messages || false;
+        this.logger.verbose(`Param chatwoot_import_messages is: ${importMessagesToCW}`);
 
-        this.logger.verbose('Inserting chats in database');
-        await this.repository.chat.insert(chatsRaw, this.instance.name, database.SAVE_DATA.CHATS);
+        const daysLimitToImport = this.localChatwoot.days_limit_import_messages || 3;
+        this.logger.verbose(`Param days limit import messages is: ${daysLimitToImport}`);
+
+        console.log('importMessagesToCW', importMessagesToCW);
+        console.log('daysLimitToImport', daysLimitToImport);
+        console.log('');
+        console.log('');
+
+        const ignoreImportMediaMessages = true;
+
+        const d = new Date();
+        const timestampLimitToImport = new Date(d.setDate(d.getDate() - daysLimitToImport)).getTime() / 1000;
+
+        /* This code can be used to procces not only the isLatest batch but others too.
+        It's not being used because we can't send messages with a custom created_at date for now.
+
+        const maxTimestamp = Math.max(
+          ...messages.map((item) =>
+            Long.isLong(item?.messageTimestamp) ? item.messageTimestamp?.toNumber() : item.messageTimestamp,
+          ),
+        );
+
+        let processBatch = false;
+        if (maxTimestamp >= dateLimitToImport) {
+          processBatch = true;
+        } */
+
+        if (isLatest) {
+          this.logger.verbose('isLatest defined as true');
+
+          const chatsRaw: ChatRaw[] = [];
+          // TODO: It would be better get only the ids from repository, but for now it's not possible
+          const chatsRepository = await this.repository.chat.find({
+            where: { owner: this.instance.name },
+          });
+
+          for (const [, chat] of Object.entries(chats)) {
+            if (chatsRepository.find((c) => c.owner === this.instance.name && c.id === chat.id)) {
+              continue;
+            }
+
+            chatsRaw.push({
+              id: chat.id,
+              owner: this.instance.name,
+              lastMsgTimestamp: chat.lastMessageRecvTimestamp,
+            });
+          }
+
+          this.logger.verbose('Sending data to webhook in event CHATS_SET');
+          await this.sendDataWebhook(Events.CHATS_SET, chatsRaw);
+
+          this.logger.verbose('Inserting chats in database');
+          await this.repository.chat.insert(chatsRaw, this.instance.name, database.SAVE_DATA.CHATS);
+
+          const messagesRaw: MessageRaw[] = [];
+          // TODO: It would be better get only the ids from repository, but for now it's not possible
+          const messagesRepository = await this.repository.message.find({
+            where: { owner: this.instance.name },
+          });
+
+          for (const [, m] of Object.entries(messages.reverse())) {
+            if (!m.message || !m.key || !m.messageTimestamp) {
+              continue;
+            }
+
+            if (Long.isLong(m?.messageTimestamp)) {
+              m.messageTimestamp = m.messageTimestamp?.toNumber();
+            }
+
+            if ((m.messageTimestamp as number) <= timestampLimitToImport) {
+              continue;
+            }
+
+            // TODO: Ignoring group messages because we have a issue to show sender name in messages
+            if (m.key.remoteJid.includes('@g.us')) {
+              //lastMessage.key.participant = m.participant;
+              continue;
+            }
+
+            if (messagesRepository.find((mr) => mr.owner === this.instance.name && mr.key.id === m.key.id)) {
+              continue;
+            }
+
+            messagesRaw.push({
+              key: m.key,
+              pushName: m.pushName || m.key.remoteJid.split('@')[0],
+              participant: m.participant,
+              message: { ...m.message },
+              messageType: getContentType(m.message),
+              messageTimestamp: m.messageTimestamp as number,
+              owner: this.instance.name,
+            });
+
+            if (this.localChatwoot.enabled && importMessagesToCW) {
+              const lastMessage = messagesRaw[messagesRaw.length - 1];
+              if (
+                ignoreImportMediaMessages &&
+                (lastMessage.messageType === 'videoMessage' || lastMessage.messageType === 'imageMessage')
+              ) {
+                continue;
+              }
+
+              await this.chatwootService.eventWhatsapp(
+                Events.MESSAGES_UPSERT,
+                { instanceName: this.instance.name },
+                lastMessage,
+              );
+            }
+          }
+
+          this.logger.verbose('Sending data to webhook in event MESSAGES_SET');
+          this.sendDataWebhook(Events.MESSAGES_SET, [...messagesRaw]);
+
+          this.logger.verbose('Inserting messages in database');
+          await this.repository.message.insert(messagesRaw, this.instance.name, database.SAVE_DATA.NEW_MESSAGE);
+
+          messages = undefined;
+          chats = undefined;
+        }
+      } catch (error) {
+        this.logger.error(error);
       }
-
-      const messagesRaw: MessageRaw[] = [];
-      const messagesRepository = await this.repository.message.find({
-        where: { owner: this.instance.name },
-      });
-      for await (const [, m] of Object.entries(messages)) {
-        if (!m.message) {
-          continue;
-        }
-        if (messagesRepository.find((mr) => mr.owner === this.instance.name && mr.key.id === m.key.id)) {
-          continue;
-        }
-
-        if (Long.isLong(m?.messageTimestamp)) {
-          m.messageTimestamp = m.messageTimestamp?.toNumber();
-        }
-
-        messagesRaw.push({
-          key: m.key,
-          pushName: m.pushName,
-          participant: m.participant,
-          message: { ...m.message },
-          messageType: getContentType(m.message),
-          messageTimestamp: m.messageTimestamp as number,
-          owner: this.instance.name,
-        });
-      }
-
-      this.logger.verbose('Sending data to webhook in event MESSAGES_SET');
-      this.sendDataWebhook(Events.MESSAGES_SET, [...messagesRaw]);
-
-      messages = undefined;
     },
 
     'messages.upsert': async (

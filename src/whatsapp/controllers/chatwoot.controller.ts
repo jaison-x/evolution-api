@@ -43,6 +43,8 @@ export class ChatwootController {
       data.reopen_conversation = false;
       data.conversation_pending = false;
       data.import_contacts = false;
+      data.import_messages = false;
+      data.days_limit_import_messages = 0;
     }
 
     data.name_inbox = instance.instanceName;

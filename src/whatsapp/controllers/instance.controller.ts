@@ -53,6 +53,8 @@ export class InstanceController {
     chatwoot_reopen_conversation,
     chatwoot_conversation_pending,
     chatwoot_import_contacts,
+    chatwoot_import_messages,
+    chatwoot_days_limit_import_messages,
     reject_call,
     msg_call,
     groups_ignore,
@@ -373,6 +375,8 @@ export class InstanceController {
           reopen_conversation: chatwoot_reopen_conversation || false,
           conversation_pending: chatwoot_conversation_pending || false,
           import_contacts: chatwoot_import_contacts || false,
+          import_messages: chatwoot_import_messages || false,
+          days_limit_import_messages: chatwoot_days_limit_import_messages || 0,
         });
 
         this.chatwootService.initInstanceChatwoot(
@@ -426,6 +430,8 @@ export class InstanceController {
           reopen_conversation: chatwoot_reopen_conversation || false,
           conversation_pending: chatwoot_conversation_pending || false,
           import_contacts: chatwoot_import_contacts || false,
+          import_messages: chatwoot_import_messages || false,
+          days_limit_import_messages: chatwoot_days_limit_import_messages || 0,
           number,
           name_inbox: instance.instanceName,
           webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,

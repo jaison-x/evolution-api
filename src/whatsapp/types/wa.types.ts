@@ -64,6 +64,8 @@ export declare namespace wa {
     reopen_conversation?: boolean;
     conversation_pending?: boolean;
     import_contacts?: boolean;
+    import_messages?: boolean;
+    days_limit_import_messages?: number;
   };
 
   export type LocalSettings = {

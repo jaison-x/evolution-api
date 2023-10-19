@@ -882,6 +882,8 @@ export const chatwootSchema: JSONSchema7 = {
     reopen_conversation: { type: 'boolean', enum: [true, false] },
     conversation_pending: { type: 'boolean', enum: [true, false] },
     import_contacts: { type: 'boolean', enum: [true, false] },
+    import_messages: { type: 'boolean', enum: [true, false] },
+    days_limit_import_messages: { type: 'number' },
   },
   required: ['enabled', 'account_id', 'token', 'url', 'sign_msg', 'reopen_conversation', 'conversation_pending'],
   ...isNotEmpty('account_id', 'token', 'url', 'sign_msg', 'reopen_conversation', 'conversation_pending'),
