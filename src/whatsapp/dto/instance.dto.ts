@@ -19,6 +19,7 @@ export class InstanceDto {
   chatwoot_sign_msg?: boolean;
   chatwoot_reopen_conversation?: boolean;
   chatwoot_conversation_pending?: boolean;
+  chatwoot_import_contacts?: boolean;
   websocket_enabled?: boolean;
   websocket_events?: string[];
   rabbitmq_enabled?: boolean;

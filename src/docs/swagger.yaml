@@ -2076,6 +2076,9 @@ paths:
                 conversation_pending:
                   type: boolean
                   description: "Indicates whether to mark conversations as pending."
+                import_contacts:
+                  type: boolean
+                  description: "Indicates whether to import contacts from phone to Chatwoot when connecting."
       parameters:
         - name: instanceName
           in: path

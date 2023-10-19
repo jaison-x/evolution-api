@@ -96,6 +96,7 @@ import {
   GroupUpdateParticipantDto,
   GroupUpdateSettingDto,
 } from '../dto/group.dto';
+import { InstanceDto } from '../dto/instance.dto';
 import {
   ContactMessage,
   MediaMessage,
@@ -335,6 +336,9 @@ export class WAStartupService {
     this.localChatwoot.conversation_pending = data?.conversation_pending;
     this.logger.verbose(`Chatwoot conversation pending: ${this.localChatwoot.conversation_pending}`);
 
+    this.localChatwoot.import_contacts = data?.import_contacts;
+    this.logger.verbose(`Chatwoot import_contacts: ${this.localChatwoot.import_contacts}`);
+
     this.logger.verbose('Chatwoot loaded');
   }
 
@@ -348,6 +352,7 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot sign msg: ${data.sign_msg}`);
     this.logger.verbose(`Chatwoot reopen conversation: ${data.reopen_conversation}`);
     this.logger.verbose(`Chatwoot conversation pending: ${data.conversation_pending}`);
+    this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
 
     Object.assign(this.localChatwoot, data);
     this.logger.verbose('Chatwoot set');
@@ -369,6 +374,7 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot sign msg: ${data.sign_msg}`);
     this.logger.verbose(`Chatwoot reopen conversation: ${data.reopen_conversation}`);
     this.logger.verbose(`Chatwoot conversation pending: ${data.conversation_pending}`);
+    this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
 
     return data;
   }
@@ -1381,33 +1387,75 @@ export class WAStartupService {
 
   private readonly contactHandle = {
     'contacts.upsert': async (contacts: Contact[], database: Database) => {
-      this.logger.verbose('Event received: contacts.upsert');
+      try {
+        this.logger.verbose('Event received: contacts.upsert');
 
-      this.logger.verbose('Finding contacts in database');
-      const contactsRepository = await this.repository.contact.find({
-        where: { owner: this.instance.name },
-      });
+        this.logger.verbose('Finding contacts in database');
+        // TODO: It would be better get only the ids from repository, but for now it's not possible
+        const contactsRepository = await this.repository.contact.find({
+          where: { owner: this.instance.name },
+        });
 
-      this.logger.verbose('Verifying if contacts exists in database to insert');
-      const contactsRaw: ContactRaw[] = [];
-      for await (const contact of contacts) {
-        if (contactsRepository.find((cr) => cr.id === contact.id)) {
-          continue;
+        this.logger.verbose('Verifying if contacts exists in database to insert');
+        const contactsRaw: ContactRaw[] = [];
+
+        const importContactsToCW = this.localChatwoot.import_contacts || false;
+        this.logger.verbose(`Param chatwoot_import_contacts is: ${importContactsToCW}`);
+
+        let instance: InstanceDto = null;
+        let filterInbox = null;
+        if (this.localChatwoot.enabled && importContactsToCW) {
+          instance = { instanceName: this.instance.name };
+          filterInbox = await this.chatwootService.getInbox(instance);
         }
 
-        contactsRaw.push({
-          id: contact.id,
-          pushName: contact?.name || contact?.verifiedName,
-          profilePictureUrl: (await this.profilePicture(contact.id)).profilePictureUrl,
-          owner: this.instance.name,
-        });
+        for (const contact of contacts) {
+          if (contactsRepository.find((cr) => cr.id === contact.id)) {
+            continue;
+          }
+
+          contactsRaw.push({
+            id: contact.id,
+            pushName: contact?.name || contact?.verifiedName || contact.id.split('@')[0],
+            profilePictureUrl: (await this.profilePicture(contact.id)).profilePictureUrl,
+            owner: this.instance.name,
+          });
+
+          if (this.localChatwoot.enabled && importContactsToCW && instance && filterInbox) {
+            const lastContact = contactsRaw[contactsRaw.length - 1];
+            const chatId = contact.id.split('@')[0];
+            const isGroup = contact.id.includes('@g.us');
+            const findContact = await this.chatwootService.findContact(instance, chatId);
+            if (!findContact) {
+              this.logger.verbose(`Importing new contact in Chatwoot: ${lastContact.pushName}`);
+              await this.chatwootService.createContact(
+                instance,
+                chatId,
+                filterInbox.id,
+                isGroup,
+                lastContact.pushName,
+                lastContact.profilePictureUrl,
+                lastContact.id,
+              );
+            } else if (!isNaN(findContact.name)) {
+              this.logger.verbose(`Updating contact in Chatwoot: ${lastContact.pushName}`);
+              // if the contact's name is a number (like a default contact), we update the contact info with details
+              await this.chatwootService.updateContact(instance, findContact.id, {
+                name: lastContact.pushName,
+                avatar_url: lastContact.profilePictureUrl,
+              });
+            }
+          }
+        }
+
+        this.logger.verbose('Sending data to webhook in event CONTACTS_UPSERT');
+        await this.sendDataWebhook(Events.CONTACTS_UPSERT, contactsRaw);
+
+        this.logger.verbose('Inserting contacts in database');
+        await this.repository.contact.insert(contactsRaw, this.instance.name, database.SAVE_DATA.CONTACTS);
+      } catch (error) {
+        this.logger.error(error);
       }
-
-      this.logger.verbose('Sending data to webhook in event CONTACTS_UPSERT');
-      await this.sendDataWebhook(Events.CONTACTS_UPSERT, contactsRaw);
-
-      this.logger.verbose('Inserting contacts in database');
-      await this.repository.contact.insert(contactsRaw, this.instance.name, database.SAVE_DATA.CONTACTS);
     },
 
     'contacts.update': async (contacts: Partial<Contact>[], database: Database) => {

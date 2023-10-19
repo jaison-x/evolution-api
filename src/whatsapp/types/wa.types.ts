@@ -63,6 +63,7 @@ export declare namespace wa {
     number?: string;
     reopen_conversation?: boolean;
     conversation_pending?: boolean;
+    import_contacts?: boolean;
   };
 
   export type LocalSettings = {
