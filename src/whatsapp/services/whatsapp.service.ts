@@ -1513,11 +1513,6 @@ export class WAStartupService {
         const daysLimitToImport = this.localChatwoot.days_limit_import_messages || 3;
         this.logger.verbose(`Param days limit import messages is: ${daysLimitToImport}`);
 
-        console.log('importMessagesToCW', importMessagesToCW);
-        console.log('daysLimitToImport', daysLimitToImport);
-        console.log('');
-        console.log('');
-
         const ignoreImportMediaMessages = true;
 
         const d = new Date();
