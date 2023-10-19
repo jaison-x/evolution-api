@@ -1678,7 +1678,7 @@ export class WAStartupService {
             reuploadRequest: this.client.updateMediaMessage,
           },
         );
-        console.log(buffer);
+        //console.log(buffer);
         messageRaw = {
           key: received.key,
           pushName: received.pushName,

@@ -25,7 +25,11 @@ export async function useMultiFileAuthStateDb(
   const writeData = async (data: any, key: string): Promise<any> => {
     try {
       await client.connect();
-      return await collection.replaceOne({ _id: key }, JSON.parse(JSON.stringify(data, BufferJSON.replacer)), {
+      const msgParsed = JSON.parse(JSON.stringify(data, BufferJSON.replacer));
+      if (msgParsed[0]) {
+        return false;
+      }
+      return await collection.replaceOne({ _id: key }, msgParsed, {
         upsert: true,
       });
     } catch (error) {
