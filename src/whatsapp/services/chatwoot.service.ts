@@ -1269,17 +1269,17 @@ export class ChatwootService {
   public async eventWhatsapp(event: string, instance: InstanceDto, body: any) {
     this.logger.verbose('event whatsapp to instance: ' + instance.instanceName);
     try {
-      const client = await this.clientCw(instance);
-
-      if (!client) {
-        this.logger.warn('client not found');
-        return null;
-      }
-
       const waInstance = this.waMonitor.waInstances[instance.instanceName];
 
       if (!waInstance) {
         this.logger.warn('wa instance not found');
+        return null;
+      }
+
+      const client = await this.clientCw(instance);
+
+      if (!client) {
+        this.logger.warn('client not found');
         return null;
       }
 
