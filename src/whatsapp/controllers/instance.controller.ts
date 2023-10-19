@@ -361,7 +361,7 @@ export class InstanceController {
       const urlServer = this.configService.get<HttpServer>('SERVER').URL;
 
       try {
-        this.chatwootService.create(instance, {
+        await this.chatwootService.create(instance, {
           enabled: true,
           account_id: chatwoot_account_id,
           token: chatwoot_token,

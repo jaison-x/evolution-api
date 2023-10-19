@@ -97,9 +97,9 @@ export class ChatwootService {
     return client;
   }
 
-  public create(instance: InstanceDto, data: ChatwootDto) {
+  public async create(instance: InstanceDto, data: ChatwootDto) {
     this.logger.verbose('create chatwoot: ' + instance.instanceName);
-    this.waMonitor.waInstances[instance.instanceName].setChatwoot(data);
+    await this.waMonitor.waInstances[instance.instanceName].setChatwoot(data);
 
     this.logger.verbose('chatwoot created');
     return data;
