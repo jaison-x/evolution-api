@@ -1532,16 +1532,18 @@ export class ChatwootService {
         await this.createBotMessage(instance, msgStatus, 'incoming');
       }
 
-      // if (event === 'connection.update') {
-      //   this.logger.verbose('event connection.update');
+      if (event === 'connection.update') {
+        this.logger.verbose('event connection.update');
 
-      //   if (body.status === 'open') {
-      //     const msgConnection = `🚀 Connection successfully established!`;
-
-      //     this.logger.verbose('send message to chatwoot');
-      //     await this.createBotMessage(instance, msgConnection, 'incoming');
-      //   }
-      // }
+        if (body.status === 'open') {
+          // if we have qrcode count then we understand that a new connection was established
+          if (this.waMonitor.waInstances[instance.instanceName].qrCode.count > 0) {
+            const msgConnection = `🚀 Connection successfully established!`;
+            this.logger.verbose('send message to chatwoot');
+            await this.createBotMessage(instance, msgConnection, 'incoming');
+          }
+        }
+      }
 
       if (event === 'qrcode.updated') {
         this.logger.verbose('event qrcode.updated');
