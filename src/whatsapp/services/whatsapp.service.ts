@@ -1717,8 +1717,9 @@ export class WAStartupService {
       this.logger.verbose('Sending data to webhook in event MESSAGES_UPSERT');
       await this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw);
 
+      let chatwootSentMessage: any;
       if (this.localChatwoot.enabled) {
-        await this.chatwootService.eventWhatsapp(
+        chatwootSentMessage = await this.chatwootService.eventWhatsapp(
           Events.MESSAGES_UPSERT,
           { instanceName: this.instance.name },
           messageRaw,
@@ -1727,10 +1728,19 @@ export class WAStartupService {
 
       if (this.localTypebot.enabled) {
         if (!(this.localTypebot.listening_from_me === false && messageRaw.key.fromMe === true)) {
+          let prefilledVariables;
+          if (this.localChatwoot.enabled && chatwootSentMessage) {
+            prefilledVariables = {
+              chatwootConversationId: chatwootSentMessage.conversation_id,
+              chatwootAccountId: this.localChatwoot.account_id,
+            };
+          }
+
           await this.typebotService.sendTypebot(
             { instanceName: this.instance.name },
             messageRaw.key.remoteJid,
             messageRaw,
+            prefilledVariables,
           );
         }
       }

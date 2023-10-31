@@ -233,7 +233,7 @@ export class TypebotService {
         prefilledVariables: {
           ...data.prefilledVariables,
           remoteJid: data.remoteJid,
-          pushName: data.pushName || '',
+          pushName: data.pushName || data.prefilledVariables?.pushName || '',
           instanceName: instance.instanceName,
         },
       },
@@ -423,7 +423,7 @@ export class TypebotService {
     }
   }
 
-  public async sendTypebot(instance: InstanceDto, remoteJid: string, msg: MessageRaw) {
+  public async sendTypebot(instance: InstanceDto, remoteJid: string, msg: MessageRaw, prefilledVariables: {}) {
     const findTypebot = await this.find(instance);
     const url = findTypebot.url;
     const typebot = findTypebot.typebot;
@@ -457,6 +457,7 @@ export class TypebotService {
           sessions: sessions,
           remoteJid: remoteJid,
           pushName: msg.pushName,
+          prefilledVariables: prefilledVariables,
         });
 
         await this.sendWAMessage(instance, remoteJid, data.messages, data.input, data.clientSideActions);
@@ -537,6 +538,7 @@ export class TypebotService {
         sessions: sessions,
         remoteJid: remoteJid,
         pushName: msg.pushName,
+        prefilledVariables: prefilledVariables,
       });
 
       await this.sendWAMessage(instance, remoteJid, data.messages, data.input, data.clientSideActions);
