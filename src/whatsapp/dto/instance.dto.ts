@@ -22,6 +22,8 @@ export class InstanceDto {
   chatwoot_import_contacts?: boolean;
   chatwoot_import_messages?: boolean;
   chatwoot_days_limit_import_messages?: number;
+  chatwoot_auto_label?: boolean;
+  chatwoot_auto_label_config?: object[];
   websocket_enabled?: boolean;
   websocket_events?: string[];
   rabbitmq_enabled?: boolean;

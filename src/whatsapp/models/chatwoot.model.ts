@@ -16,6 +16,8 @@ export class ChatwootRaw {
   import_contacts?: boolean;
   import_messages?: boolean;
   days_limit_import_messages?: number;
+  auto_label?: boolean;
+  auto_label_config?: object[];
 }
 
 const chatwootSchema = new Schema<ChatwootRaw>({
@@ -32,6 +34,8 @@ const chatwootSchema = new Schema<ChatwootRaw>({
   import_contacts: { type: Boolean, required: false },
   import_messages: { type: Boolean, required: false },
   days_limit_import_messages: { type: Number, required: false },
+  auto_label: { type: Boolean, required: false },
+  auto_label_config: { type: [Object], required: false },
 });
 
 export const ChatwootModel = dbserver?.model(ChatwootRaw.name, chatwootSchema, 'chatwoot');

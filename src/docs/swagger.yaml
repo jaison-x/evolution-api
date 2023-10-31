@@ -2085,6 +2085,21 @@ paths:
                 days_limit_import_messages:
                   type: number
                   description: "Indicates number of days to limit messages imported to Chatwoot."
+                auto_label:
+                  type: boolean
+                  description: "Indicates whether to add labels to the conversation in Chatwoot. Labels are added by param auto_label_config."
+                auto_label_config:
+                  type: array
+                  description: "List of configs to test regex and add labels."
+                  items:
+                    type: object
+                    properties:
+                      regex:
+                        type: array
+                        description: "Array with Regexes to test."
+                      label: 
+                        type: string
+                        description: "Label to add when some regex is true."
       parameters:
         - name: instanceName
           in: path

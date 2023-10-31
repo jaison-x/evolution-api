@@ -346,6 +346,12 @@ export class WAStartupService {
     this.localChatwoot.days_limit_import_messages = data?.days_limit_import_messages;
     this.logger.verbose(`Chatwoot days_limit_import_messages: ${this.localChatwoot.days_limit_import_messages}`);
 
+    this.localChatwoot.auto_label = data?.auto_label;
+    this.logger.verbose(`Chatwoot auto_label: ${this.localChatwoot.auto_label}`);
+
+    this.localChatwoot.auto_label_config = data?.auto_label_config;
+    this.logger.verbose(`Chatwoot auto_label_config: ${this.localChatwoot.auto_label_config}`);
+
     this.logger.verbose('Chatwoot loaded');
   }
 
@@ -362,6 +368,8 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
     this.logger.verbose(`Chatwoot import messages: ${data.import_messages}`);
     this.logger.verbose(`Chatwoot days limit to import messages: ${data.days_limit_import_messages}`);
+    this.logger.verbose(`Chatwoot auto_label: ${data.auto_label}`);
+    this.logger.verbose(`Chatwoot auto_label_config : ${data.auto_label_config}`);
 
     Object.assign(this.localChatwoot, data);
     this.logger.verbose('Chatwoot set');
@@ -386,6 +394,8 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
     this.logger.verbose(`Chatwoot import messages: ${data.import_messages}`);
     this.logger.verbose(`Chatwoot days limit import messages: ${data.days_limit_import_messages}`);
+    this.logger.verbose(`Chatwoot auto_label: ${data.auto_label}`);
+    this.logger.verbose(`Chatwoot auto_label_config: ${data.auto_label_config}`);
 
     return data;
   }

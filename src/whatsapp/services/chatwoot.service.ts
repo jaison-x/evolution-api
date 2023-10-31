@@ -1266,6 +1266,73 @@ export class ChatwootService {
     return messageContent;
   }
 
+  private getLabelsToAdd(message: string): string[] {
+    this.logger.verbose('getting regexes and testing to get necessary labels');
+    const labels: string[] = [];
+
+    let autoLabelConfig = this.provider.auto_label_config || [];
+    if (autoLabelConfig.length === 0 && this.provider.auto_label) {
+      const providerFallback: any = this.getProvider({ instanceName: 'Lequia' });
+      if (providerFallback) {
+        autoLabelConfig = providerFallback.auto_label_config;
+      }
+    }
+
+    autoLabelConfig.forEach((config) => {
+      if (config.regex.some((filter) => new RegExp(filter, 'gi').test(message))) {
+        labels.push(config.label);
+      }
+    });
+
+    return labels;
+  }
+
+  private async processAutoLabel(message: string, conversation: number, instance: InstanceDto): Promise<string[]> {
+    const autoLabel = this.provider.auto_label || false;
+
+    this.logger.verbose(`auto label is: ${autoLabel}`);
+    if (!autoLabel) {
+      return;
+    }
+
+    this.logger.verbose('searching if is to add labels');
+    let labelsToAdd: string[] = this.getLabelsToAdd(message);
+
+    if (labelsToAdd.length === 0) {
+      this.logger.verbose('no labels to add');
+      return labelsToAdd;
+    }
+
+    const client = await this.clientCw(instance);
+    if (!client) {
+      this.logger.warn('client not found');
+      return null;
+    }
+
+    const currentLabels: string[] = (
+      await client.conversationLabels.list({
+        accountId: this.provider.account_id,
+        conversationId: conversation,
+      })
+    ).payload;
+
+    labelsToAdd = [...new Set([...currentLabels, ...labelsToAdd])];
+
+    this.logger.verbose('checking if labels already exists in conversation');
+    if (!labelsToAdd.every((labelAdd) => currentLabels.find((currLabel) => currLabel === labelAdd) !== undefined)) {
+      this.logger.verbose(`adding labels to conversation: ${labelsToAdd}`);
+      await client.conversationLabels.add({
+        accountId: this.provider.account_id,
+        conversationId: conversation,
+        data: {
+          labels: labelsToAdd,
+        },
+      });
+    }
+
+    return labelsToAdd;
+  }
+
   public async eventWhatsapp(event: string, instance: InstanceDto, body: any) {
     this.logger.verbose('event whatsapp to instance: ' + instance.instanceName);
     try {
@@ -1511,6 +1578,10 @@ export class ChatwootService {
 
           this.logger.verbose('save message cache');
           this.saveMessageCache();
+
+          if (!body.key.fromMe) {
+            this.processAutoLabel(bodyMessage, getConversation, instance);
+          }
 
           return send;
         }

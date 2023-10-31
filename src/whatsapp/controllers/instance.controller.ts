@@ -55,6 +55,8 @@ export class InstanceController {
     chatwoot_import_contacts,
     chatwoot_import_messages,
     chatwoot_days_limit_import_messages,
+    chatwoot_auto_label,
+    chatwoot_auto_label_config,
     reject_call,
     msg_call,
     groups_ignore,
@@ -377,6 +379,8 @@ export class InstanceController {
           import_contacts: chatwoot_import_contacts || false,
           import_messages: chatwoot_import_messages || false,
           days_limit_import_messages: chatwoot_days_limit_import_messages || 0,
+          auto_label: chatwoot_auto_label || false,
+          auto_label_config: chatwoot_auto_label_config || [],
         });
 
         this.chatwootService.initInstanceChatwoot(
@@ -432,6 +436,8 @@ export class InstanceController {
           import_contacts: chatwoot_import_contacts || false,
           import_messages: chatwoot_import_messages || false,
           days_limit_import_messages: chatwoot_days_limit_import_messages || 0,
+          auto_label: chatwoot_auto_label || false,
+          auto_label_config: chatwoot_auto_label_config || [],
           number,
           name_inbox: instance.instanceName,
           webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
