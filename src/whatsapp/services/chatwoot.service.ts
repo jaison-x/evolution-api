@@ -1270,8 +1270,8 @@ export class ChatwootService {
     this.logger.verbose('getting regexes and testing to get necessary labels');
     const labels: string[] = [];
 
-    let autoLabelConfig = this.provider.auto_label_config || [];
-    if (autoLabelConfig.length === 0 && this.provider.auto_label) {
+    let autoLabelConfig = this.provider?.auto_label_config || [];
+    if (autoLabelConfig.length === 0 && this.provider?.auto_label) {
       const providerFallback: any = this.getProvider({ instanceName: 'Lequia' });
       if (providerFallback) {
         autoLabelConfig = providerFallback.auto_label_config;
@@ -1288,7 +1288,7 @@ export class ChatwootService {
   }
 
   private async processAutoLabel(message: string, conversation: number, instance: InstanceDto): Promise<string[]> {
-    const autoLabel = this.provider.auto_label || false;
+    const autoLabel = this.provider?.auto_label || false;
 
     this.logger.verbose(`auto label is: ${autoLabel}`);
     if (!autoLabel) {
