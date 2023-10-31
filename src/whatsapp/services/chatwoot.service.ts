@@ -1266,23 +1266,25 @@ export class ChatwootService {
     return messageContent;
   }
 
-  private getLabelsToAdd(message: string): string[] {
+  private async getLabelsToAdd(message: string): Promise<string[]> {
     this.logger.verbose('getting regexes and testing to get necessary labels');
     const labels: string[] = [];
 
     let autoLabelConfig = this.provider?.auto_label_config || [];
     if (autoLabelConfig.length === 0 && this.provider?.auto_label) {
-      const providerFallback: any = this.getProvider({ instanceName: 'Lequia' });
+      const providerFallback: any = await this.getProvider({ instanceName: 'Lequia' });
       if (providerFallback) {
         autoLabelConfig = providerFallback.auto_label_config;
       }
     }
 
-    autoLabelConfig.forEach((config) => {
-      if (config.regex.some((filter) => new RegExp(filter, 'gi').test(message))) {
-        labels.push(config.label);
-      }
-    });
+    if (autoLabelConfig) {
+      autoLabelConfig.forEach((config) => {
+        if (config.regex.some((filter) => new RegExp(filter, 'gi').test(message))) {
+          labels.push(config.label);
+        }
+      });
+    }
 
     return labels;
   }
@@ -1296,7 +1298,7 @@ export class ChatwootService {
     }
 
     this.logger.verbose('searching if is to add labels');
-    let labelsToAdd: string[] = this.getLabelsToAdd(message);
+    let labelsToAdd: string[] = await this.getLabelsToAdd(message);
 
     if (labelsToAdd.length === 0) {
       this.logger.verbose('no labels to add');
