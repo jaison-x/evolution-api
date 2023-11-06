@@ -74,6 +74,10 @@ export type Chatwoot = {
   USE_REPLY_ID: boolean;
 };
 
+export type Chatnode = {
+  API_KEY: string;
+};
+
 export type EventsWebhook = {
   APPLICATION_STARTUP: boolean;
   QRCODE_UPDATED: boolean;
@@ -144,6 +148,7 @@ export interface Env {
   AUTHENTICATION: Auth;
   PRODUCTION?: Production;
   CHATWOOT?: Chatwoot;
+  CHATNODE?: Chatnode;
 }
 
 export type Key = keyof Env;
@@ -304,6 +309,9 @@ export class ConfigService {
       },
       CHATWOOT: {
         USE_REPLY_ID: process.env?.USE_REPLY_ID === 'true',
+      },
+      CHATNODE: {
+        API_KEY: process.env?.CHATNODE_API_KEY || '',
       },
     };
   }

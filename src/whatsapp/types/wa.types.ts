@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import { AuthenticationState, WAConnectionState } from '@whiskeysockets/baileys';
 
+import { ActiveHoursConfig } from '../dto/chatnode.dto';
+
 export enum Events {
   APPLICATION_STARTUP = 'application.startup',
   QRCODE_UPDATED = 'qrcode.updated',
@@ -77,6 +79,22 @@ export declare namespace wa {
     always_online?: boolean;
     read_messages?: boolean;
     read_status?: boolean;
+  };
+
+  export type LocalChatnode = {
+    enabled?: boolean;
+    bot_id?: string;
+    sign_name?: string;
+    active_hours?: {
+      0: ActiveHoursConfig[];
+      1: ActiveHoursConfig[];
+      2: ActiveHoursConfig[];
+      3: ActiveHoursConfig[];
+      4: ActiveHoursConfig[];
+      5: ActiveHoursConfig[];
+      6: ActiveHoursConfig[];
+    };
+    numbers_always_active?: string[];
   };
 
   export type LocalWebsocket = {

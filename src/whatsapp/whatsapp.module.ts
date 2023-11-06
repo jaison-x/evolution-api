@@ -5,6 +5,7 @@ import { dbserver } from '../libs/db.connect';
 import { RedisCache } from '../libs/redis.client';
 import { ChamaaiController } from './controllers/chamaai.controller';
 import { ChatController } from './controllers/chat.controller';
+import { ChatnodeController } from './controllers/chatnode.controller';
 import { ChatwootController } from './controllers/chatwoot.controller';
 import { GroupController } from './controllers/group.controller';
 import { InstanceController } from './controllers/instance.controller';
@@ -20,6 +21,7 @@ import {
   AuthModel,
   ChamaaiModel,
   ChatModel,
+  ChatnodeModel,
   ChatwootModel,
   ContactModel,
   MessageModel,
@@ -34,6 +36,7 @@ import {
 import { AuthRepository } from './repository/auth.repository';
 import { ChamaaiRepository } from './repository/chamaai.repository';
 import { ChatRepository } from './repository/chat.repository';
+import { ChatnodeRepository } from './repository/chatnode.repository';
 import { ChatwootRepository } from './repository/chatwoot.repository';
 import { ContactRepository } from './repository/contact.repository';
 import { MessageRepository } from './repository/message.repository';
@@ -47,6 +50,7 @@ import { WebhookRepository } from './repository/webhook.repository';
 import { WebsocketRepository } from './repository/websocket.repository';
 import { AuthService } from './services/auth.service';
 import { ChamaaiService } from './services/chamaai.service';
+import { ChatnodeService } from './services/chatnode.service';
 import { ChatwootService } from './services/chatwoot.service';
 import { WAMonitoringService } from './services/monitor.service';
 import { ProxyService } from './services/proxy.service';
@@ -71,6 +75,7 @@ const rabbitmqRepository = new RabbitmqRepository(RabbitmqModel, configService);
 const chatwootRepository = new ChatwootRepository(ChatwootModel, configService);
 const settingsRepository = new SettingsRepository(SettingsModel, configService);
 const authRepository = new AuthRepository(AuthModel, configService);
+const chatnodeRepository = new ChatnodeRepository(ChatnodeModel, configService);
 
 export const repository = new RepositoryBroker(
   messageRepository,
@@ -87,6 +92,7 @@ export const repository = new RepositoryBroker(
   chamaaiRepository,
   authRepository,
   configService,
+  chatnodeRepository,
   dbserver?.getClient(),
 );
 
@@ -127,6 +133,10 @@ export const chatwootController = new ChatwootController(chatwootService, config
 const settingsService = new SettingsService(waMonitor);
 
 export const settingsController = new SettingsController(settingsService);
+
+const chatnodeService = new ChatnodeService(waMonitor, repository, configService, chatwootService);
+
+export const chatnodeController = new ChatnodeController(chatnodeService);
 
 export const instanceController = new InstanceController(
   waMonitor,

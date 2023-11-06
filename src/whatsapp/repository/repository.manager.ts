@@ -7,6 +7,7 @@ import { Logger } from '../../config/logger.config';
 import { AuthRepository } from './auth.repository';
 import { ChamaaiRepository } from './chamaai.repository';
 import { ChatRepository } from './chat.repository';
+import { ChatnodeRepository } from './chatnode.repository';
 import { ChatwootRepository } from './chatwoot.repository';
 import { ContactRepository } from './contact.repository';
 import { MessageRepository } from './message.repository';
@@ -33,6 +34,7 @@ export class RepositoryBroker {
     public readonly chamaai: ChamaaiRepository,
     public readonly auth: AuthRepository,
     private configService: ConfigService,
+    public readonly chatnode: ChatnodeRepository,
     dbServer?: MongoClient,
   ) {
     this.dbClient = dbServer;
@@ -59,6 +61,7 @@ export class RepositoryBroker {
         const messagesDir = join(storePath, 'messages');
         const messageUpDir = join(storePath, 'message-up');
         const webhookDir = join(storePath, 'webhook');
+        const chatnodeDir = join(storePath, 'chatnode');
         const chatwootDir = join(storePath, 'chatwoot');
         const settingsDir = join(storePath, 'settings');
         const websocketDir = join(storePath, 'websocket');
@@ -91,6 +94,10 @@ export class RepositoryBroker {
         if (!fs.existsSync(webhookDir)) {
           this.logger.verbose('creating webhook dir: ' + webhookDir);
           fs.mkdirSync(webhookDir, { recursive: true });
+        }
+        if (!fs.existsSync(chatnodeDir)) {
+          this.logger.verbose('creating chatnode dir: ' + chatnodeDir);
+          fs.mkdirSync(chatnodeDir, { recursive: true });
         }
         if (!fs.existsSync(chatwootDir)) {
           this.logger.verbose('creating chatwoot dir: ' + chatwootDir);

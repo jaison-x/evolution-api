@@ -116,6 +116,7 @@ import {
 } from '../dto/sendMessage.dto';
 import { ChamaaiRaw, ProxyRaw, RabbitmqRaw, SettingsRaw, TypebotRaw } from '../models';
 import { ChatRaw } from '../models/chat.model';
+import { ChatnodeRaw } from '../models/chatnode.model';
 import { ChatwootRaw } from '../models/chatwoot.model';
 import { ContactRaw } from '../models/contact.model';
 import { MessageRaw, MessageUpdateRaw } from '../models/message.model';
@@ -128,6 +129,7 @@ import { RepositoryBroker } from '../repository/repository.manager';
 import { Events, MessageSubtype, TypeMediaMessage, wa } from '../types/wa.types';
 import { waMonitor } from '../whatsapp.module';
 import { ChamaaiService } from './chamaai.service';
+import { ChatnodeService } from './chatnode.service';
 import { ChatwootService } from './chatwoot.service';
 //import { SocksProxyAgent } from './socks-proxy-agent';
 import { TypebotService } from './typebot.service';
@@ -148,6 +150,7 @@ export class WAStartupService {
   public readonly instance: wa.Instance = {};
   public client: WASocket;
   private readonly localWebhook: wa.LocalWebHook = {};
+  private readonly localChatnode: wa.LocalChatnode = {};
   private readonly localChatwoot: wa.LocalChatwoot = {};
   private readonly localSettings: wa.LocalSettings = {};
   private readonly localWebsocket: wa.LocalWebsocket = {};
@@ -165,6 +168,8 @@ export class WAStartupService {
   private phoneNumber: string;
 
   private chatwootService = new ChatwootService(waMonitor, this.configService);
+
+  private chatnodeService = new ChatnodeService(waMonitor, this.repository, this.configService, this.chatwootService);
 
   private typebotService = new TypebotService(waMonitor);
 
@@ -304,6 +309,60 @@ export class WAStartupService {
 
     this.logger.verbose(`Webhook url: ${data.url}`);
     this.logger.verbose(`Webhook events: ${data.events}`);
+    return data;
+  }
+
+  private async loadChatnode() {
+    this.logger.verbose('Loading chatnode');
+    const data = await this.repository.chatnode.find(this.instanceName);
+
+    this.localChatnode.enabled = data?.enabled;
+    this.logger.verbose(`Chatnode enabled: ${this.localChatnode.enabled}`);
+
+    this.localChatnode.bot_id = data?.bot_id;
+    this.logger.verbose(`Chatnode bot_id: ${this.localChatnode.bot_id}`);
+
+    this.localChatnode.sign_name = data?.sign_name;
+    this.logger.verbose(`Chatnode sign_name: ${this.localChatnode.sign_name}`);
+
+    this.localChatnode.active_hours = data?.active_hours;
+    this.logger.verbose(`Chatnode active_hours: ${this.localChatnode.active_hours}`);
+
+    this.localChatnode.numbers_always_active = data?.numbers_always_active;
+    this.logger.verbose(`Chatnode numbers_always_active: ${this.localChatnode.numbers_always_active}`);
+
+    this.logger.verbose('Chatnode loaded');
+  }
+
+  public async setChatnode(data: ChatnodeRaw) {
+    this.logger.verbose('Setting chatnode');
+    await this.repository.chatnode.create(data, this.instanceName);
+    this.logger.verbose(`Chatnode enabled: ${data.enabled}`);
+    this.logger.verbose(`Chatnode bot_id: ${data.bot_id}`);
+    this.logger.verbose(`Chatnode sign_name: ${data.sign_name}`);
+    this.logger.verbose(`Chatnode active_hours: ${data.active_hours}`);
+    this.logger.verbose(`Chatnode numbers_always_active: ${data.numbers_always_active}`);
+    Object.assign(this.localChatnode, data);
+    this.logger.verbose('Chatnode set');
+
+    this.client?.ws?.close();
+  }
+
+  public async findChatnode() {
+    this.logger.verbose('Finding chatnode');
+    const data = await this.repository.chatnode.find(this.instanceName);
+
+    if (!data) {
+      this.logger.verbose('Chatnode not found');
+      return null;
+    }
+
+    this.logger.verbose(`Chatnode enabled: ${data.enabled}`);
+    this.logger.verbose(`Chatnode bot_id: ${data.bot_id}`);
+    this.logger.verbose(`Chatnode sign_name: ${data.sign_name}`);
+    this.logger.verbose(`Chatnode active_hours: ${data.active_hours}`);
+    this.logger.verbose(`Chatnode numbers_always_active: ${data.numbers_always_active}`);
+
     return data;
   }
 
@@ -1190,6 +1249,7 @@ export class WAStartupService {
     this.logger.verbose('Connecting to whatsapp');
     try {
       this.loadWebhook();
+      this.loadChatnode();
       this.loadChatwoot();
       this.loadSettings();
       this.loadWebsocket();
@@ -1734,6 +1794,16 @@ export class WAStartupService {
           { instanceName: this.instance.name },
           messageRaw,
         );
+      }
+
+      if (this.localChatnode.enabled) {
+        if (!messageRaw.key.fromMe === true) {
+          await this.chatnodeService.sendChatnode(
+            { instanceName: this.instance.name },
+            messageRaw.key.remoteJid,
+            messageRaw,
+          );
+        }
       }
 
       if (this.localTypebot.enabled) {
@@ -2370,6 +2440,7 @@ export class WAStartupService {
         messageTimestamp: messageSent.messageTimestamp as number,
         owner: this.instance.name,
         source: getDevice(messageSent.key.id),
+        isBot: options?.isBot || false,
       };
 
       this.logger.log(messageRaw);

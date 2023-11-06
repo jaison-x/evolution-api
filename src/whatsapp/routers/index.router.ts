@@ -6,6 +6,7 @@ import { authGuard } from '../guards/auth.guard';
 import { instanceExistsGuard, instanceLoggedGuard } from '../guards/instance.guard';
 import { ChamaaiRouter } from './chamaai.router';
 import { ChatRouter } from './chat.router';
+import { ChatnodeRouter } from './chatnode.router';
 import { ChatwootRouter } from './chatwoot.router';
 import { GroupRouter } from './group.router';
 import { InstanceRouter } from './instance.router';
@@ -49,6 +50,7 @@ router
   .use('/chat', new ChatRouter(...guards).router)
   .use('/group', new GroupRouter(...guards).router)
   .use('/webhook', new WebhookRouter(...guards).router)
+  .use('/chatnode', new ChatnodeRouter(...guards).router)
   .use('/chatwoot', new ChatwootRouter(...guards).router)
   .use('/settings', new SettingsRouter(...guards).router)
   .use('/websocket', new WebsocketRouter(...guards).router)

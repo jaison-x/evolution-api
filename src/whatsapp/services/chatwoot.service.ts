@@ -1289,7 +1289,7 @@ export class ChatwootService {
     return labels;
   }
 
-  private async processAutoLabel(message: string, conversation: number, instance: InstanceDto): Promise<string[]> {
+  private async processAutoLabel(instance: InstanceDto, conversation: number, message: string): Promise<string[]> {
     const autoLabel = this.provider?.auto_label || false;
 
     this.logger.verbose(`auto label is: ${autoLabel}`);
@@ -1298,13 +1298,19 @@ export class ChatwootService {
     }
 
     this.logger.verbose('searching if is to add labels');
-    let labelsToAdd: string[] = await this.getLabelsToAdd(message);
+    const labelsToAdd: string[] = await this.getLabelsToAdd(message);
 
     if (labelsToAdd.length === 0) {
       this.logger.verbose('no labels to add');
       return labelsToAdd;
     }
 
+    this.addLabels(instance, conversation, labelsToAdd);
+
+    return labelsToAdd;
+  }
+
+  public async addLabels(instance: InstanceDto, conversation: number, labels: string[]) {
     const client = await this.clientCw(instance);
     if (!client) {
       this.logger.warn('client not found');
@@ -1318,7 +1324,7 @@ export class ChatwootService {
       })
     ).payload;
 
-    labelsToAdd = [...new Set([...currentLabels, ...labelsToAdd])];
+    const labelsToAdd = [...new Set([...currentLabels, ...labels])];
 
     this.logger.verbose('checking if labels already exists in conversation');
     if (!labelsToAdd.every((labelAdd) => currentLabels.find((currLabel) => currLabel === labelAdd) !== undefined)) {
@@ -1330,9 +1336,11 @@ export class ChatwootService {
           labels: labelsToAdd,
         },
       });
+
+      return labelsToAdd;
     }
 
-    return labelsToAdd;
+    return [];
   }
 
   public async eventWhatsapp(event: string, instance: InstanceDto, body: any) {
@@ -1582,7 +1590,7 @@ export class ChatwootService {
           this.saveMessageCache();
 
           if (!body.key.fromMe) {
-            this.processAutoLabel(bodyMessage, getConversation, instance);
+            this.processAutoLabel(instance, getConversation, bodyMessage);
           }
 
           return send;

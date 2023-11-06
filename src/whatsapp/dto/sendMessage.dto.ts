@@ -17,6 +17,7 @@ export class Options {
   mentions?: Mentions;
   linkPreview?: boolean;
   encoding?: boolean;
+  isBot?: boolean;
 }
 class OptionsMessage {
   options: Options;
