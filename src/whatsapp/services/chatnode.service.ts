@@ -132,6 +132,14 @@ export class ChatnodeService {
     return response.includes(this.chatnode_without_answer);
   }
 
+  public isGroup(remoteJid: string): boolean {
+    return remoteJid.includes('@g.us');
+  }
+
+  public isRecentMessage(msg: any): boolean {
+    return (new Date().getTime() - (msg.messageTimestamp as number) * 1000) / 1000 / 60 < 1;
+  }
+
   public async hasRecentAttendMessage(instance: InstanceDto, remoteJid: string): Promise<boolean> {
     const date = new Date();
     date.setMinutes(date.getMinutes() - 5);
@@ -213,7 +221,22 @@ export class ChatnodeService {
 
   public async sendChatnode(instance: InstanceDto, remoteJid: string, msg: any): Promise<string> {
     this.logger.verbose('generating response in chatnodeservice for instance: ' + instance.instanceName);
+
+    if (this.isGroup(remoteJid)) {
+      this.logger.verbose('message is group. Ignored by chatnode.');
+      return;
+    }
+
+    if (!this.isRecentMessage(msg)) {
+      this.logger.verbose('message is not recent. Ignored by chatnode.');
+      return;
+    }
+
     const findchatnode = await this.find(instance);
+    if (!findchatnode) {
+      return;
+    }
+
     let chatnodeResponse = '';
 
     if (findchatnode && findchatnode.bot_id) {
@@ -222,6 +245,11 @@ export class ChatnodeService {
       //const hasRecentAttendMessage = await this.hasRecentAttendMessage(instance, remoteJid);
 
       if (isActiveHour || isAlwaysActiveNumber) {
+        if (msg) {
+          // for now integration is disabled...
+          return;
+        }
+
         chatnodeResponse = await this.generateResponseFromChatnode(
           remoteJid,
           this.getConversationMessage(msg.message),
