@@ -26,9 +26,11 @@ export async function useMultiFileAuthStateDb(
     try {
       await client.connect();
       let msgParsed = JSON.parse(JSON.stringify(data, BufferJSON.replacer));
-
-      if (msgParsed[0]) {
-        msgParsed = msgParsed[0];
+      if (Array.isArray(msgParsed)) {
+        msgParsed = {
+          _id: key,
+          content_array: msgParsed,
+        };
       }
       return await collection.replaceOne({ _id: key }, msgParsed, {
         upsert: true,
@@ -41,7 +43,10 @@ export async function useMultiFileAuthStateDb(
   const readData = async (key: string): Promise<any> => {
     try {
       await client.connect();
-      const data = await collection.findOne({ _id: key });
+      let data = (await collection.findOne({ _id: key })) as any;
+      if (data?.content_array) {
+        data = data.content_array;
+      }
       const creds = JSON.stringify(data);
       return JSON.parse(creds, BufferJSON.reviver);
     } catch (error) {
