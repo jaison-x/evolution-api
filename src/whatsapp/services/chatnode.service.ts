@@ -112,7 +112,7 @@ export class ChatnodeService {
 
   public isInActiveHour(chatnode: ChatnodeDto): boolean {
     const date = new Date();
-    if (chatnode.active_hours[date.getDay()]) {
+    if (chatnode?.active_hours && chatnode.active_hours[date.getDay()]) {
       return chatnode.active_hours[date.getDay()].some((config: ActiveHoursConfig) => {
         const configDateIni = new Date(`${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${config.ini}`);
         const configDateEnd = new Date(`${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${config.end}`);
@@ -125,7 +125,7 @@ export class ChatnodeService {
   }
 
   public isAlwaysActiveNumber(findchatnode: ChatnodeRaw, remoteJid: string): boolean {
-    return findchatnode.numbers_always_active.some((number) => remoteJid.includes(number));
+    return findchatnode.numbers_always_active?.some((number) => remoteJid.includes(number));
   }
 
   public isResponseWithoutAnswer(response: string): boolean {
