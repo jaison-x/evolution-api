@@ -1294,7 +1294,7 @@ export class WAStartupService {
         msgRetryCounterCache: this.msgRetryCounterCache,
         getMessage: async (key) => (await this.getMessage(key)) as Promise<proto.IMessage>,
         generateHighQualityLinkPreview: true,
-        syncFullHistory: true,
+        syncFullHistory: false,
         userDevicesCache: this.userDevicesCache,
         transactionOpts: { maxCommitRetries: 1, delayBetweenTriesMs: 10 },
         patchMessageBeforeSending: (message) => {
@@ -1374,7 +1374,7 @@ export class WAStartupService {
         msgRetryCounterCache: this.msgRetryCounterCache,
         getMessage: async (key) => (await this.getMessage(key)) as Promise<proto.IMessage>,
         generateHighQualityLinkPreview: true,
-        syncFullHistory: true,
+        syncFullHistory: false,
         userDevicesCache: this.userDevicesCache,
         transactionOpts: { maxCommitRetries: 1, delayBetweenTriesMs: 10 },
         patchMessageBeforeSending: (message) => {
@@ -2765,57 +2765,61 @@ export class WAStartupService {
   }
 
   public async processAudio(audio: string, number: string) {
-    this.logger.verbose('Processing audio');
-    let tempAudioPath: string;
-    let outputAudio: string;
+    try {
+      this.logger.verbose('Processing audio');
+      let tempAudioPath: string;
+      let outputAudio: string;
 
-    const hash = `${number}-${new Date().getTime()}`;
-    this.logger.verbose('Hash to audio name: ' + hash);
+      const hash = `${number}-${new Date().getTime()}`;
+      this.logger.verbose('Hash to audio name: ' + hash);
 
-    if (isURL(audio)) {
-      this.logger.verbose('Audio is url');
+      if (isURL(audio)) {
+        this.logger.verbose('Audio is url');
 
-      outputAudio = `${join(this.storePath, 'temp', `${hash}.mp4`)}`;
-      tempAudioPath = `${join(this.storePath, 'temp', `temp-${hash}.mp3`)}`;
+        outputAudio = `${join(this.storePath, 'temp', `${hash}.mp4`)}`;
+        tempAudioPath = `${join(this.storePath, 'temp', `temp-${hash}.mp3`)}`;
 
-      this.logger.verbose('Output audio path: ' + outputAudio);
-      this.logger.verbose('Temp audio path: ' + tempAudioPath);
+        this.logger.verbose('Output audio path: ' + outputAudio);
+        this.logger.verbose('Temp audio path: ' + tempAudioPath);
 
-      const timestamp = new Date().getTime();
-      const url = `${audio}?timestamp=${timestamp}`;
+        const timestamp = new Date().getTime();
+        const url = `${audio}?timestamp=${timestamp}`;
 
-      this.logger.verbose('Including timestamp in url: ' + url);
+        this.logger.verbose('Including timestamp in url: ' + url);
 
-      const response = await axios.get(url, { responseType: 'arraybuffer' });
-      this.logger.verbose('Getting audio from url');
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        this.logger.verbose('Getting audio from url');
 
-      fs.writeFileSync(tempAudioPath, response.data);
-    } else {
-      this.logger.verbose('Audio is base64');
+        fs.writeFileSync(tempAudioPath, response.data);
+      } else {
+        this.logger.verbose('Audio is base64');
 
-      outputAudio = `${join(this.storePath, 'temp', `${hash}.mp4`)}`;
-      tempAudioPath = `${join(this.storePath, 'temp', `temp-${hash}.mp3`)}`;
+        outputAudio = `${join(this.storePath, 'temp', `${hash}.mp4`)}`;
+        tempAudioPath = `${join(this.storePath, 'temp', `temp-${hash}.mp3`)}`;
 
-      this.logger.verbose('Output audio path: ' + outputAudio);
-      this.logger.verbose('Temp audio path: ' + tempAudioPath);
+        this.logger.verbose('Output audio path: ' + outputAudio);
+        this.logger.verbose('Temp audio path: ' + tempAudioPath);
 
-      const audioBuffer = Buffer.from(audio, 'base64');
-      fs.writeFileSync(tempAudioPath, audioBuffer);
-      this.logger.verbose('Temp audio created');
-    }
+        const audioBuffer = Buffer.from(audio, 'base64');
+        fs.writeFileSync(tempAudioPath, audioBuffer);
+        this.logger.verbose('Temp audio created');
+      }
 
-    this.logger.verbose('Converting audio to mp4');
-    return new Promise((resolve, reject) => {
-      exec(`${ffmpegPath.path} -i ${tempAudioPath} -vn -ab 128k -ar 44100 -f ipod ${outputAudio} -y`, (error) => {
-        fs.unlinkSync(tempAudioPath);
-        this.logger.verbose('Temp audio deleted');
+      this.logger.verbose('Converting audio to mp4');
+      return new Promise((resolve, reject) => {
+        exec(`${ffmpegPath.path} -i ${tempAudioPath} -vn -ab 128k -ar 44100 -f ipod ${outputAudio} -y`, (error) => {
+          fs.unlinkSync(tempAudioPath);
+          this.logger.verbose('Temp audio deleted');
 
-        if (error) reject(error);
+          if (error) reject(error);
 
-        this.logger.verbose('Audio converted to mp4');
-        resolve(outputAudio);
+          this.logger.verbose('Audio converted to mp4');
+          resolve(outputAudio);
+        });
       });
-    });
+    } catch (error) {
+      this.logger.error(`Error processing audio: ${error?.toString()}`);
+    }
   }
 
   public async audioWhatsapp(data: SendAudioDto, isChatwoot = false) {
