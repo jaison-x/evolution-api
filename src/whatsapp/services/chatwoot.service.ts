@@ -1471,6 +1471,10 @@ export class ChatwootService {
             this.logger.verbose('save message cache');
             this.saveMessageCache();
 
+            if (!body.key.fromMe) {
+              this.processAutoLabel(instance, getConversation, bodyMessage);
+            }
+
             return send;
           }
         }
@@ -1532,6 +1536,14 @@ export class ChatwootService {
 
           this.logger.verbose('save message cache');
           this.saveMessageCache();
+
+          if (!body.key.fromMe) {
+            this.processAutoLabel(
+              instance,
+              getConversation,
+              `${bodyMessage} ${title} ${description} ${adsMessage.sourceUrl}`,
+            );
+          }
 
           return send;
         }
