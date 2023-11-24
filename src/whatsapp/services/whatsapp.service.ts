@@ -1711,178 +1711,192 @@ export class WAStartupService {
       database: Database,
       settings: SettingsRaw,
     ) => {
-      this.logger.verbose('Event received: messages.upsert');
+      try {
+        this.logger.verbose('Event received: messages.upsert');
 
-      for (const received of messages) {
-        if (
-          (type !== 'notify' && type !== 'append') ||
-          !received?.message ||
-          received.message?.protocolMessage ||
-          //received.message.senderKeyDistributionMessage ||
-          received.message?.pollUpdateMessage
-        ) {
-          this.logger.verbose('message rejected');
-          continue;
-        }
-
-        if (Long.isLong(received.messageTimestamp)) {
-          received.messageTimestamp = received.messageTimestamp?.toNumber();
-        }
-
-        if (settings?.groups_ignore && received.key.remoteJid.includes('@g.us')) {
-          this.logger.verbose('group ignored');
-          continue;
-        }
-
-        let messageRaw: MessageRaw;
-
-        if (
-          (this.localWebhook.webhook_base64 === true && received?.message.documentMessage) ||
-          received?.message.imageMessage
-        ) {
-          const buffer = await downloadMediaMessage(
-            { key: received.key, message: received?.message },
-            'buffer',
-            {},
-            {
-              logger: P({ level: 'error' }) as any,
-              reuploadRequest: this.client.updateMediaMessage,
-            },
-          );
-          //console.log(buffer);
-          messageRaw = {
-            key: received.key,
-            pushName: received.pushName,
-            message: {
-              ...received.message,
-              base64: buffer ? buffer.toString('base64') : undefined,
-            },
-            messageType: getContentType(received.message),
-            messageTimestamp: received.messageTimestamp as number,
-            owner: this.instance.name,
-            source: getDevice(received.key.id),
-          };
-        } else {
-          messageRaw = {
-            key: received.key,
-            pushName: received.pushName,
-            message: { ...received.message },
-            messageType: getContentType(received.message),
-            messageTimestamp: received.messageTimestamp as number,
-            owner: this.instance.name,
-            source: getDevice(received.key.id),
-          };
-        }
-
-        if (this.localSettings.read_messages && received.key.id !== 'status@broadcast') {
-          await this.client.readMessages([received.key]);
-        }
-
-        if (this.localSettings.read_status && received.key.id === 'status@broadcast') {
-          await this.client.readMessages([received.key]);
-        }
-
-        this.logger.log(messageRaw);
-
-        this.logger.verbose('Sending data to webhook in event MESSAGES_UPSERT');
-        await this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw);
-
-        let chatwootSentMessage: any;
-        if (this.localChatwoot.enabled) {
-          chatwootSentMessage = await this.chatwootService.eventWhatsapp(
-            Events.MESSAGES_UPSERT,
-            { instanceName: this.instance.name },
-            messageRaw,
-          );
-        }
-
-        if (this.localChatnode.enabled && messageRaw.key.fromMe === false && type === 'notify') {
-          await this.chatnodeService.sendChatnode(
-            { instanceName: this.instance.name },
-            messageRaw.key.remoteJid,
-            messageRaw,
-          );
-        }
-
-        if (this.localTypebot.enabled && type === 'notify') {
-          if (!(this.localTypebot.listening_from_me === false && messageRaw.key.fromMe === true)) {
-            let prefilledVariables;
-            if (this.localChatwoot.enabled && chatwootSentMessage) {
-              prefilledVariables = {
-                chatwootConversationId: chatwootSentMessage.conversation_id,
-                chatwootAccountId: this.localChatwoot.account_id,
-              };
+        for (const received of messages) {
+          if (
+            (type !== 'notify' && type !== 'append') ||
+            !received?.message ||
+            received.message?.protocolMessage ||
+            //received.message.senderKeyDistributionMessage ||
+            received.message?.pollUpdateMessage
+          ) {
+            this.logger.verbose('message rejected');
+            const d = new Date();
+            if (received?.key?.remoteJid !== 'status@broadcast') {
+              console.log();
+              console.log(
+                `received.message rejected. type: ${type} - ${d.getHours()}:${d.getMinutes()}`,
+                received?.message ? received?.message : received,
+              );
+              console.log();
             }
+            continue;
+          }
 
-            await this.typebotService.sendTypebot(
+          if (Long.isLong(received.messageTimestamp)) {
+            received.messageTimestamp = received.messageTimestamp?.toNumber();
+          }
+
+          if (settings?.groups_ignore && received.key.remoteJid.includes('@g.us')) {
+            this.logger.verbose('group ignored');
+            continue;
+          }
+
+          let messageRaw: MessageRaw;
+
+          if (
+            (this.localWebhook.webhook_base64 === true && received?.message.documentMessage) ||
+            received?.message.imageMessage
+          ) {
+            const buffer = await downloadMediaMessage(
+              { key: received.key, message: received?.message },
+              'buffer',
+              {},
+              {
+                logger: P({ level: 'error' }) as any,
+                reuploadRequest: this.client.updateMediaMessage,
+              },
+            );
+            //console.log(buffer);
+            messageRaw = {
+              key: received.key,
+              pushName: received.pushName,
+              message: {
+                ...received.message,
+                base64: buffer ? buffer.toString('base64') : undefined,
+              },
+              messageType: getContentType(received.message),
+              messageTimestamp: received.messageTimestamp as number,
+              owner: this.instance.name,
+              source: getDevice(received.key.id),
+            };
+          } else {
+            messageRaw = {
+              key: received.key,
+              pushName: received.pushName,
+              message: { ...received.message },
+              messageType: getContentType(received.message),
+              messageTimestamp: received.messageTimestamp as number,
+              owner: this.instance.name,
+              source: getDevice(received.key.id),
+            };
+          }
+
+          if (this.localSettings.read_messages && received.key.id !== 'status@broadcast') {
+            await this.client.readMessages([received.key]);
+          }
+
+          if (this.localSettings.read_status && received.key.id === 'status@broadcast') {
+            await this.client.readMessages([received.key]);
+          }
+
+          this.logger.log(messageRaw);
+
+          this.logger.verbose('Sending data to webhook in event MESSAGES_UPSERT');
+          await this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw);
+
+          let chatwootSentMessage: any;
+          if (this.localChatwoot.enabled) {
+            chatwootSentMessage = await this.chatwootService.eventWhatsapp(
+              Events.MESSAGES_UPSERT,
+              { instanceName: this.instance.name },
+              messageRaw,
+            );
+          }
+
+          if (this.localChatnode.enabled && messageRaw.key.fromMe === false && type === 'notify') {
+            await this.chatnodeService.sendChatnode(
               { instanceName: this.instance.name },
               messageRaw.key.remoteJid,
               messageRaw,
-              prefilledVariables,
             );
           }
-        }
 
-        if (this.localChamaai.enabled && messageRaw.key.fromMe === false && type === 'notify') {
-          await this.chamaaiService.sendChamaai(
-            { instanceName: this.instance.name },
-            messageRaw.key.remoteJid,
-            messageRaw,
-          );
-        }
+          if (this.localTypebot.enabled && type === 'notify') {
+            if (!(this.localTypebot.listening_from_me === false && messageRaw.key.fromMe === true)) {
+              let prefilledVariables;
+              if (this.localChatwoot.enabled && chatwootSentMessage) {
+                prefilledVariables = {
+                  chatwootConversationId: chatwootSentMessage.conversation_id,
+                  chatwootAccountId: this.localChatwoot.account_id,
+                };
+              }
 
-        this.logger.verbose('Inserting message in database');
-        await this.repository.message.insert([messageRaw], this.instance.name, database.SAVE_DATA.NEW_MESSAGE);
+              await this.typebotService.sendTypebot(
+                { instanceName: this.instance.name },
+                messageRaw.key.remoteJid,
+                messageRaw,
+                prefilledVariables,
+              );
+            }
+          }
 
-        this.logger.verbose('Verifying contact from message');
-        const contact = await this.repository.contact.find({
-          where: { owner: this.instance.name, id: received.key.remoteJid },
-        });
+          if (this.localChamaai.enabled && messageRaw.key.fromMe === false && type === 'notify') {
+            await this.chamaaiService.sendChamaai(
+              { instanceName: this.instance.name },
+              messageRaw.key.remoteJid,
+              messageRaw,
+            );
+          }
 
-        const contactRaw: ContactRaw = {
-          id: received.key.remoteJid,
-          pushName: received.pushName,
-          profilePictureUrl: (await this.profilePicture(received.key.remoteJid)).profilePictureUrl,
-          owner: this.instance.name,
-        };
+          this.logger.verbose('Inserting message in database');
+          await this.repository.message.insert([messageRaw], this.instance.name, database.SAVE_DATA.NEW_MESSAGE);
 
-        if (contactRaw.id === 'status@broadcast') {
-          this.logger.verbose('Contact is status@broadcast');
-          continue;
-        }
+          this.logger.verbose('Verifying contact from message');
+          const contact = await this.repository.contact.find({
+            where: { owner: this.instance.name, id: received.key.remoteJid },
+          });
 
-        if (contact?.length) {
-          this.logger.verbose('Contact found in database');
           const contactRaw: ContactRaw = {
             id: received.key.remoteJid,
-            pushName: contact[0].pushName,
+            pushName: received.pushName,
             profilePictureUrl: (await this.profilePicture(received.key.remoteJid)).profilePictureUrl,
             owner: this.instance.name,
           };
 
-          this.logger.verbose('Sending data to webhook in event CONTACTS_UPDATE');
-          await this.sendDataWebhook(Events.CONTACTS_UPDATE, contactRaw);
-
-          if (this.localChatwoot.enabled) {
-            await this.chatwootService.eventWhatsapp(
-              Events.CONTACTS_UPDATE,
-              { instanceName: this.instance.name },
-              contactRaw,
-            );
+          if (contactRaw.id === 'status@broadcast') {
+            this.logger.verbose('Contact is status@broadcast');
+            continue;
           }
 
-          this.logger.verbose('Updating contact in database');
-          await this.repository.contact.update([contactRaw], this.instance.name, database.SAVE_DATA.CONTACTS);
-          continue;
+          if (contact?.length) {
+            this.logger.verbose('Contact found in database');
+            const contactRaw: ContactRaw = {
+              id: received.key.remoteJid,
+              pushName: contact[0].pushName,
+              profilePictureUrl: (await this.profilePicture(received.key.remoteJid)).profilePictureUrl,
+              owner: this.instance.name,
+            };
+
+            this.logger.verbose('Sending data to webhook in event CONTACTS_UPDATE');
+            await this.sendDataWebhook(Events.CONTACTS_UPDATE, contactRaw);
+
+            if (this.localChatwoot.enabled) {
+              await this.chatwootService.eventWhatsapp(
+                Events.CONTACTS_UPDATE,
+                { instanceName: this.instance.name },
+                contactRaw,
+              );
+            }
+
+            this.logger.verbose('Updating contact in database');
+            await this.repository.contact.update([contactRaw], this.instance.name, database.SAVE_DATA.CONTACTS);
+            continue;
+          }
+
+          this.logger.verbose('Contact not found in database');
+
+          this.logger.verbose('Sending data to webhook in event CONTACTS_UPSERT');
+          await this.sendDataWebhook(Events.CONTACTS_UPSERT, contactRaw);
+
+          this.logger.verbose('Inserting contact in database');
+          await this.repository.contact.insert([contactRaw], this.instance.name, database.SAVE_DATA.CONTACTS);
         }
-
-        this.logger.verbose('Contact not found in database');
-
-        this.logger.verbose('Sending data to webhook in event CONTACTS_UPSERT');
-        await this.sendDataWebhook(Events.CONTACTS_UPSERT, contactRaw);
-
-        this.logger.verbose('Inserting contact in database');
-        await this.repository.contact.insert([contactRaw], this.instance.name, database.SAVE_DATA.CONTACTS);
+      } catch (error) {
+        error.message = `Error on messages.upsert: ${error?.message}`;
+        this.logger.error(error);
       }
     },
 
