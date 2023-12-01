@@ -9,6 +9,7 @@
     "start:prod": "bash start.sh",
     "dev:server": "clear && tsnd --files --transpile-only --respawn --ignore-watch node_modules ./src/main.ts",
     "test": "clear && tsnd --files --transpile-only --respawn --ignore-watch node_modules ./test/all.test.ts",
+    "postinstall": "patch-package",
     "lint": "eslint --fix --ext .ts src"
   },
   "repository": {
@@ -70,6 +71,7 @@
     "node-cache": "^5.1.2",
     "node-mime-types": "^1.1.0",
     "node-windows": "^1.0.0-beta.8",
+    "patch-package": "^8.0.0",
     "pino": "^8.11.0",
     "proxy-agent": "^6.3.0",
     "qrcode": "^1.5.1",
