@@ -167,7 +167,7 @@ export class WAStartupService {
 
   private phoneNumber: string;
 
-  private chatwootService = new ChatwootService(waMonitor, this.configService);
+  private chatwootService = new ChatwootService(waMonitor, this.configService, this.repository);
 
   private chatnodeService = new ChatnodeService(waMonitor, this.repository, this.configService, this.chatwootService);
 
@@ -1804,6 +1804,9 @@ export class WAStartupService {
               { instanceName: this.instance.name },
               messageRaw,
             );
+            if (chatwootSentMessage?.id) {
+              messageRaw.chatwootMessageId = chatwootSentMessage.id;
+            }
           }
 
           if (this.localChatnode.enabled && messageRaw.key.fromMe === false && type === 'notify') {

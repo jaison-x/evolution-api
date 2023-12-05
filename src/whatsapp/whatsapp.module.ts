@@ -126,9 +126,9 @@ const rabbitmqService = new RabbitmqService(waMonitor);
 
 export const rabbitmqController = new RabbitmqController(rabbitmqService);
 
-const chatwootService = new ChatwootService(waMonitor, configService);
+const chatwootService = new ChatwootService(waMonitor, configService, repository);
 
-export const chatwootController = new ChatwootController(chatwootService, configService);
+export const chatwootController = new ChatwootController(chatwootService, configService, repository);
 
 const settingsService = new SettingsService(waMonitor);
 

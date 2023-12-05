@@ -11,7 +11,9 @@ import { Logger } from '../../config/logger.config';
 import { ROOT_DIR } from '../../config/path.config';
 import { ChatwootDto } from '../dto/chatwoot.dto';
 import { InstanceDto } from '../dto/instance.dto';
-import { SendAudioDto, SendMediaDto, SendTextDto } from '../dto/sendMessage.dto';
+import { Options, Quoted, SendAudioDto, SendMediaDto, SendTextDto } from '../dto/sendMessage.dto';
+import { MessageRaw } from '../models';
+import { RepositoryBroker } from '../repository/repository.manager';
 import { WAMonitoringService } from './monitor.service';
 
 export class ChatwootService {
@@ -22,7 +24,11 @@ export class ChatwootService {
 
   private provider: any;
 
-  constructor(private readonly waMonitor: WAMonitoringService, private readonly configService: ConfigService) {
+  constructor(
+    private readonly waMonitor: WAMonitoringService,
+    private readonly configService: ConfigService,
+    private readonly repository: RepositoryBroker,
+  ) {
     this.messageCache = new Set();
   }
 
@@ -619,6 +625,7 @@ export class ChatwootService {
       encoding: string;
       filename: string;
     }[],
+    messageBody?: any,
   ) {
     this.logger.verbose('create message to instance: ' + instance.instanceName);
 
@@ -629,6 +636,8 @@ export class ChatwootService {
       return null;
     }
 
+    const replyToIds = await this.getReplyToIds(messageBody, instance);
+
     this.logger.verbose('create message in chatwoot');
     const message = await client.messages.create({
       accountId: this.provider.account_id,
@@ -638,6 +647,9 @@ export class ChatwootService {
         message_type: messageType,
         attachments: attachments,
         private: privateMessage || false,
+        content_attributes: {
+          ...replyToIds,
+        },
       },
     });
 
@@ -733,6 +745,8 @@ export class ChatwootService {
     file: string,
     messageType: 'incoming' | 'outgoing' | undefined,
     content?: string,
+    instance?: InstanceDto,
+    messageBody?: any,
   ) {
     this.logger.verbose('send data to chatwoot');
 
@@ -748,6 +762,16 @@ export class ChatwootService {
 
     this.logger.verbose('temp file found');
     data.append('attachments[]', createReadStream(file));
+
+    if (messageBody && instance) {
+      const replyToIds = await this.getReplyToIds(messageBody, instance);
+
+      if (replyToIds.in_reply_to || replyToIds.in_reply_to_external_id) {
+        data.append('content_attributes', {
+          ...replyToIds,
+        });
+      }
+    }
 
     this.logger.verbose('get client to instance: ' + this.provider.instanceName);
     const config = {
@@ -869,7 +893,7 @@ export class ChatwootService {
     }
   }
 
-  public async sendAttachment(waInstance: any, number: string, media: any, caption?: string) {
+  public async sendAttachment(waInstance: any, number: string, media: any, caption?: string, options?: Options) {
     this.logger.verbose('send attachment to instance: ' + waInstance.instanceName);
 
     try {
@@ -911,13 +935,13 @@ export class ChatwootService {
           options: {
             delay: 1200,
             presence: 'recording',
+            ...options,
           },
         };
 
-        await waInstance?.audioWhatsapp(data, true);
-
+        const messageSent = await waInstance?.audioWhatsapp(data, true);
         this.logger.verbose('audio sent');
-        return;
+        return messageSent;
       }
 
       this.logger.verbose('send media to instance: ' + waInstance.instanceName);
@@ -931,6 +955,7 @@ export class ChatwootService {
         options: {
           delay: 1200,
           presence: 'composing',
+          ...options,
         },
       };
 
@@ -939,10 +964,9 @@ export class ChatwootService {
         data.mediaMessage.caption = caption;
       }
 
-      await waInstance?.mediaMessage(data, true);
-
+      const messageSent = await waInstance?.mediaMessage(data, true);
       this.logger.verbose('media sent');
-      return;
+      return messageSent;
     } catch (error) {
       this.logger.error(error);
     }
@@ -1061,7 +1085,26 @@ export class ChatwootService {
                 formatText = null;
               }
 
-              await this.sendAttachment(waInstance, chatId, attachment.data_url, formatText);
+              const options: Options = {
+                quoted: await this.getQuotedMessage(body, instance),
+              };
+
+              const messageSent = await this.sendAttachment(
+                waInstance,
+                chatId,
+                attachment.data_url,
+                formatText,
+                options,
+              );
+
+              this.updateChatwootMessageId(
+                {
+                  ...messageSent,
+                  owner: instance.instanceName,
+                },
+                body.id,
+                instance,
+              );
             }
           } else {
             this.logger.verbose('message is text');
@@ -1075,10 +1118,20 @@ export class ChatwootService {
               options: {
                 delay: 1200,
                 presence: 'composing',
+                quoted: await this.getQuotedMessage(body, instance),
               },
             };
 
-            await waInstance?.textMessage(data, true);
+            const messageSent = await waInstance?.textMessage(data, true);
+
+            this.updateChatwootMessageId(
+              {
+                ...messageSent,
+                owner: instance.instanceName,
+              },
+              body.id,
+              instance,
+            );
           }
         }
       }
@@ -1108,6 +1161,65 @@ export class ChatwootService {
 
       return { message: 'bot' };
     }
+  }
+
+  private updateChatwootMessageId(message: MessageRaw, chatwootMessageId: string, instance: InstanceDto) {
+    if (!chatwootMessageId) {
+      return;
+    }
+    message.chatwootMessageId = chatwootMessageId;
+    this.repository.message.update([message], instance.instanceName, true);
+  }
+
+  private async getReplyToIds(
+    msg: any,
+    instance: InstanceDto,
+  ): Promise<{ in_reply_to: string; in_reply_to_external_id: string }> {
+    let inReplyTo = null;
+    let inReplyToExternalId = null;
+
+    if (msg) {
+      inReplyToExternalId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+      if (inReplyToExternalId) {
+        const message = await this.repository.message.find({
+          where: {
+            key: {
+              id: inReplyToExternalId,
+            },
+            owner: instance.instanceName,
+          },
+          limit: 1,
+        });
+        if (message.length && message[0]?.chatwootMessageId) {
+          inReplyTo = message[0].chatwootMessageId;
+        }
+      }
+    }
+
+    return {
+      in_reply_to: inReplyTo,
+      in_reply_to_external_id: inReplyToExternalId,
+    };
+  }
+
+  private async getQuotedMessage(msg: any, instance: InstanceDto): Promise<Quoted> {
+    if (msg?.content_attributes?.in_reply_to) {
+      const message = await this.repository.message.find({
+        where: {
+          chatwootMessageId: msg?.content_attributes?.in_reply_to,
+          owner: instance.instanceName,
+        },
+        limit: 1,
+      });
+      if (message.length && message[0]?.key?.id) {
+        return {
+          key: message[0].key,
+          message: message[0].message,
+        };
+      }
+    }
+
+    return null;
   }
 
   private isMediaMessage(message: any) {
@@ -1434,7 +1546,7 @@ export class ChatwootService {
             }
 
             this.logger.verbose('send data to chatwoot');
-            const send = await this.sendData(getConversation, fileName, messageType, content);
+            const send = await this.sendData(getConversation, fileName, messageType, content, instance, body);
 
             if (!send) {
               this.logger.warn('message not sent');
@@ -1455,7 +1567,7 @@ export class ChatwootService {
             this.logger.verbose('message is not group');
 
             this.logger.verbose('send data to chatwoot');
-            const send = await this.sendData(getConversation, fileName, messageType, bodyMessage);
+            const send = await this.sendData(getConversation, fileName, messageType, bodyMessage, instance, body);
 
             if (!send) {
               this.logger.warn('message not sent');
@@ -1521,6 +1633,8 @@ export class ChatwootService {
             fileName,
             messageType,
             `${bodyMessage}\n\n\n**${title}**\n${description}\n${adsMessage.sourceUrl}`,
+            instance,
+            body,
           );
 
           if (!send) {
@@ -1564,7 +1678,7 @@ export class ChatwootService {
           }
 
           this.logger.verbose('send data to chatwoot');
-          const send = await this.createMessage(instance, getConversation, content, messageType);
+          const send = await this.createMessage(instance, getConversation, content, messageType, false, [], body);
 
           if (!send) {
             this.logger.warn('message not sent');
@@ -1585,7 +1699,7 @@ export class ChatwootService {
           this.logger.verbose('message is not group');
 
           this.logger.verbose('send data to chatwoot');
-          const send = await this.createMessage(instance, getConversation, bodyMessage, messageType);
+          const send = await this.createMessage(instance, getConversation, bodyMessage, messageType, false, [], body);
 
           if (!send) {
             this.logger.warn('message not sent');
