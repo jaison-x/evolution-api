@@ -985,7 +985,13 @@ export class ChatwootService {
       }
 
       this.logger.verbose('check if is bot');
-      if (!body?.conversation || body.private || body.event === 'message_updated') return { message: 'bot' };
+      if (
+        !body?.conversation ||
+        body.private ||
+        (body.event === 'message_updated' && !body.content_attributes?.deleted)
+      ) {
+        return { message: 'bot' };
+      }
 
       this.logger.verbose('check if is group');
       const chatId =
@@ -993,6 +999,21 @@ export class ChatwootService {
       const messageReceived = body.content;
       const senderName = body?.sender?.name;
       const waInstance = this.waMonitor.waInstances[instance.instanceName];
+
+      this.logger.verbose('check if is a message deletion');
+      if (body.event === 'message_updated' && body.content_attributes?.deleted) {
+        const message = await this.repository.message.find({
+          where: {
+            owner: instance.instanceName,
+            chatwootMessageId: body.id,
+          },
+          limit: 1,
+        });
+        if (message.length && message[0].key?.id) {
+          await waInstance?.client.sendMessage(message[0].key.remoteJid, { delete: message[0].key });
+        }
+        return { message: 'bot' };
+      }
 
       if (chatId === '123456' && body.message_type === 'outgoing') {
         this.logger.verbose('check if is command');
@@ -1255,6 +1276,18 @@ export class ChatwootService {
     return adsMessage;
   }
 
+  private getReactionMessage(msg: any) {
+    interface ReactionMessage {
+      key: MessageRaw['key'];
+      text: string;
+    }
+    const reactionMessage: ReactionMessage | undefined = msg?.reactionMessage;
+
+    this.logger.verbose('Get reaction message if it exists');
+    reactionMessage && this.logger.verbose('Reaction message: ' + reactionMessage);
+    return reactionMessage;
+  }
+
   private getTypeMessage(msg: any) {
     this.logger.verbose('get type message');
 
@@ -1487,7 +1520,9 @@ export class ChatwootService {
 
         const adsMessage = this.getAdsMessage(body.message);
 
-        if (!bodyMessage && !isMedia) {
+        const reactionMessage = this.getReactionMessage(body.message);
+
+        if (!bodyMessage && !isMedia && !reactionMessage) {
           this.logger.warn('no body message found');
           return;
         }
@@ -1589,6 +1624,35 @@ export class ChatwootService {
 
             return send;
           }
+        }
+
+        this.logger.verbose('check if has ReactionMessage');
+        if (reactionMessage) {
+          this.logger.verbose('send data to chatwoot');
+          if (reactionMessage.text) {
+            const send = await this.createMessage(
+              instance,
+              getConversation,
+              reactionMessage.text,
+              messageType,
+              false,
+              [],
+              {
+                message: { extendedTextMessage: { contextInfo: { stanzaId: reactionMessage.key.id } } },
+              },
+            );
+            if (!send) {
+              this.logger.warn('message not sent');
+              return;
+            }
+            this.messageCacheFile = path.join(ROOT_DIR, 'store', 'chatwoot', `${instance.instanceName}_cache.txt`);
+            this.messageCache = this.loadMessageCache();
+            this.messageCache.add(send.id.toString());
+            this.logger.verbose('save message cache');
+            this.saveMessageCache();
+          }
+
+          return;
         }
 
         this.logger.verbose('check if has Ads Message');
