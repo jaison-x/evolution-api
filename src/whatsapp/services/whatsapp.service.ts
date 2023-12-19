@@ -17,6 +17,7 @@ import makeWASocket, {
   getContentType,
   getDevice,
   GroupMetadata,
+  isJidBroadcast,
   isJidGroup,
   isJidUser,
   makeCacheableSignalKeyStore,
@@ -60,6 +61,7 @@ import {
   Log,
   QrCode,
   Redis,
+  Sqs,
   Webhook,
   Websocket,
 } from '../../config/env.config';
@@ -70,6 +72,7 @@ import { getAMQP, removeQueues } from '../../libs/amqp.server';
 import { dbserver } from '../../libs/db.connect';
 import { RedisCache } from '../../libs/redis.client';
 import { getIO } from '../../libs/socket.server';
+import { getSQS, removeQueues as removeQueuesSQS } from '../../libs/sqs.server';
 import { useMultiFileAuthStateDb } from '../../utils/use-multi-file-auth-state-db';
 import { useMultiFileAuthStateRedisDb } from '../../utils/use-multi-file-auth-state-redis-db';
 import {
@@ -81,6 +84,7 @@ import {
   OnWhatsAppDto,
   PrivacySettingDto,
   ReadMessageDto,
+  SendPresenceDto,
   WhatsAppNumberDto,
 } from '../dto/chat.dto';
 import {
@@ -114,7 +118,7 @@ import {
   SendTextDto,
   StatusMessage,
 } from '../dto/sendMessage.dto';
-import { ChamaaiRaw, ProxyRaw, RabbitmqRaw, SettingsRaw, TypebotRaw } from '../models';
+import { ChamaaiRaw, ProxyRaw, RabbitmqRaw, SettingsRaw, SqsRaw, TypebotRaw } from '../models';
 import { ChatRaw } from '../models/chat.model';
 import { ChatnodeRaw } from '../models/chatnode.model';
 import { ChatwootRaw } from '../models/chatwoot.model';
@@ -131,9 +135,7 @@ import { waMonitor } from '../whatsapp.module';
 import { ChamaaiService } from './chamaai.service';
 import { ChatnodeService } from './chatnode.service';
 import { ChatwootService } from './chatwoot.service';
-//import { SocksProxyAgent } from './socks-proxy-agent';
 import { TypebotService } from './typebot.service';
-
 export class WAStartupService {
   constructor(
     private readonly configService: ConfigService,
@@ -155,6 +157,7 @@ export class WAStartupService {
   private readonly localSettings: wa.LocalSettings = {};
   private readonly localWebsocket: wa.LocalWebsocket = {};
   private readonly localRabbitmq: wa.LocalRabbitmq = {};
+  private readonly localSqs: wa.LocalSqs = {};
   public readonly localTypebot: wa.LocalTypebot = {};
   private readonly localProxy: wa.LocalProxy = {};
   private readonly localChamaai: wa.LocalChamaai = {};
@@ -171,7 +174,7 @@ export class WAStartupService {
 
   private chatnodeService = new ChatnodeService(waMonitor, this.repository, this.configService, this.chatwootService);
 
-  private typebotService = new TypebotService(waMonitor);
+  private typebotService = new TypebotService(waMonitor, this.configService);
 
   private chamaaiService = new ChamaaiService(waMonitor, this.configService);
 
@@ -214,6 +217,7 @@ export class WAStartupService {
 
   public async getProfileName() {
     this.logger.verbose('Getting profile name');
+
     let profileName = this.client.user?.name ?? this.client.user?.verifiedName;
     if (!profileName) {
       this.logger.verbose('Profile name not found, trying to get from database');
@@ -309,7 +313,14 @@ export class WAStartupService {
 
     this.logger.verbose(`Webhook url: ${data.url}`);
     this.logger.verbose(`Webhook events: ${data.events}`);
-    return data;
+
+    return {
+      enabled: data.enabled,
+      url: data.url,
+      events: data.events,
+      webhook_by_events: data.webhook_by_events,
+      webhook_base64: data.webhook_base64,
+    };
   }
 
   private async loadChatnode() {
@@ -456,7 +467,16 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot auto_label: ${data.auto_label}`);
     this.logger.verbose(`Chatwoot auto_label_config: ${data.auto_label_config}`);
 
-    return data;
+    return {
+      enabled: data.enabled,
+      account_id: data.account_id,
+      token: data.token,
+      url: data.url,
+      name_inbox: data.name_inbox,
+      sign_msg: data.sign_msg,
+      reopen_conversation: data.reopen_conversation,
+      conversation_pending: data.conversation_pending,
+    };
   }
 
   private async loadSettings() {
@@ -513,7 +533,14 @@ export class WAStartupService {
     this.logger.verbose(`Settings always_online: ${data.always_online}`);
     this.logger.verbose(`Settings read_messages: ${data.read_messages}`);
     this.logger.verbose(`Settings read_status: ${data.read_status}`);
-    return data;
+    return {
+      reject_call: data.reject_call,
+      msg_call: data.msg_call,
+      groups_ignore: data.groups_ignore,
+      always_online: data.always_online,
+      read_messages: data.read_messages,
+      read_status: data.read_status,
+    };
   }
 
   private async loadWebsocket() {
@@ -547,7 +574,10 @@ export class WAStartupService {
     }
 
     this.logger.verbose(`Websocket events: ${data.events}`);
-    return data;
+    return {
+      enabled: data.enabled,
+      events: data.events,
+    };
   }
 
   private async loadRabbitmq() {
@@ -581,7 +611,10 @@ export class WAStartupService {
     }
 
     this.logger.verbose(`Rabbitmq events: ${data.events}`);
-    return data;
+    return {
+      enabled: data.enabled,
+      events: data.events,
+    };
   }
 
   public async removeRabbitmqQueues() {
@@ -589,6 +622,51 @@ export class WAStartupService {
 
     if (this.localRabbitmq.enabled) {
       removeQueues(this.instanceName, this.localRabbitmq.events);
+    }
+  }
+
+  private async loadSqs() {
+    this.logger.verbose('Loading sqs');
+    const data = await this.repository.sqs.find(this.instanceName);
+
+    this.localSqs.enabled = data?.enabled;
+    this.logger.verbose(`Sqs enabled: ${this.localSqs.enabled}`);
+
+    this.localSqs.events = data?.events;
+    this.logger.verbose(`Sqs events: ${this.localSqs.events}`);
+
+    this.logger.verbose('Sqs loaded');
+  }
+
+  public async setSqs(data: SqsRaw) {
+    this.logger.verbose('Setting sqs');
+    await this.repository.sqs.create(data, this.instanceName);
+    this.logger.verbose(`Sqs events: ${data.events}`);
+    Object.assign(this.localSqs, data);
+    this.logger.verbose('Sqs set');
+  }
+
+  public async findSqs() {
+    this.logger.verbose('Finding sqs');
+    const data = await this.repository.sqs.find(this.instanceName);
+
+    if (!data) {
+      this.logger.verbose('Sqs not found');
+      throw new NotFoundException('Sqs not found');
+    }
+
+    this.logger.verbose(`Sqs events: ${data.events}`);
+    return {
+      enabled: data.enabled,
+      events: data.events,
+    };
+  }
+
+  public async removeSqsQueues() {
+    this.logger.verbose('Removing sqs');
+
+    if (this.localSqs.enabled) {
+      removeQueuesSQS(this.instanceName, this.localSqs.events);
     }
   }
 
@@ -647,7 +725,17 @@ export class WAStartupService {
       throw new NotFoundException('Typebot not found');
     }
 
-    return data;
+    return {
+      enabled: data.enabled,
+      url: data.url,
+      typebot: data.typebot,
+      expire: data.expire,
+      keyword_finish: data.keyword_finish,
+      delay_message: data.delay_message,
+      unknown_message: data.unknown_message,
+      listening_from_me: data.listening_from_me,
+      sessions: data.sessions,
+    };
   }
 
   private async loadProxy() {
@@ -663,14 +751,16 @@ export class WAStartupService {
     this.logger.verbose('Proxy loaded');
   }
 
-  public async setProxy(data: ProxyRaw) {
+  public async setProxy(data: ProxyRaw, reload = true) {
     this.logger.verbose('Setting proxy');
     await this.repository.proxy.create(data, this.instanceName);
     this.logger.verbose(`Proxy proxy: ${data.proxy}`);
     Object.assign(this.localProxy, data);
     this.logger.verbose('Proxy set');
 
-    this.client?.ws?.close();
+    if (reload) {
+      this.reloadConnection();
+    }
   }
 
   public async findProxy() {
@@ -682,7 +772,10 @@ export class WAStartupService {
       throw new NotFoundException('Proxy not found');
     }
 
-    return data;
+    return {
+      enabled: data.enabled,
+      proxy: data.proxy,
+    };
   }
 
   private async loadChamaai() {
@@ -728,7 +821,13 @@ export class WAStartupService {
       throw new NotFoundException('Chamaai not found');
     }
 
-    return data;
+    return {
+      enabled: data.enabled,
+      url: data.url,
+      token: data.token,
+      waNumber: data.waNumber,
+      answerByAudio: data.answerByAudio,
+    };
   }
 
   public async sendDataWebhook<T = any>(event: Events, data: T, local = true) {
@@ -736,6 +835,7 @@ export class WAStartupService {
     const webhookLocal = this.localWebhook.events;
     const websocketLocal = this.localWebsocket.events;
     const rabbitmqLocal = this.localRabbitmq.events;
+    const sqsLocal = this.localSqs.events;
     const serverUrl = this.configService.get<HttpServer>('SERVER').URL;
     const we = event.replace(/[.-]/gm, '_').toUpperCase();
     const transformedWe = we.replace(/_/gm, '-').toLowerCase();
@@ -804,6 +904,76 @@ export class WAStartupService {
 
             this.logger.log(logData);
           }
+        }
+      }
+    }
+
+    if (this.localSqs.enabled) {
+      const sqs = getSQS();
+
+      if (sqs) {
+        if (Array.isArray(sqsLocal) && sqsLocal.includes(we)) {
+          const eventFormatted = `${event.replace('.', '_').toLowerCase()}`;
+
+          const queueName = `${this.instanceName}_${eventFormatted}.fifo`;
+
+          const sqsConfig = this.configService.get<Sqs>('SQS');
+
+          const sqsUrl = `https://sqs.${sqsConfig.REGION}.amazonaws.com/${sqsConfig.ACCOUNT_ID}/${queueName}`;
+
+          const message = {
+            event,
+            instance: this.instance.name,
+            data,
+            server_url: serverUrl,
+            date_time: now,
+            sender: this.wuid,
+          };
+
+          if (expose && instanceApikey) {
+            message['apikey'] = instanceApikey;
+          }
+
+          const params = {
+            MessageBody: JSON.stringify(message),
+            MessageGroupId: 'evolution',
+            MessageDeduplicationId: `${this.instanceName}_${eventFormatted}_${Date.now()}`,
+            QueueUrl: sqsUrl,
+          };
+
+          sqs.sendMessage(params, (err, data) => {
+            if (err) {
+              this.logger.error({
+                local: WAStartupService.name + '.sendData-SQS',
+                message: err?.message,
+                hostName: err?.hostname,
+                code: err?.code,
+                stack: err?.stack,
+                name: err?.name,
+                url: queueName,
+                server_url: serverUrl,
+              });
+            } else {
+              if (this.configService.get<Log>('LOG').LEVEL.includes('WEBHOOKS')) {
+                const logData = {
+                  local: WAStartupService.name + '.sendData-SQS',
+                  event,
+                  instance: this.instance.name,
+                  data,
+                  server_url: serverUrl,
+                  apikey: (expose && instanceApikey) || null,
+                  date_time: now,
+                  sender: this.wuid,
+                };
+
+                if (expose && instanceApikey) {
+                  logData['apikey'] = instanceApikey;
+                }
+
+                this.logger.log(logData);
+              }
+            }
+          });
         }
       }
     }
@@ -1254,6 +1424,7 @@ export class WAStartupService {
       this.loadSettings();
       this.loadWebsocket();
       this.loadRabbitmq();
+      this.loadSqs();
       this.loadTypebot();
       this.loadProxy();
       this.loadChamaai();
@@ -1269,11 +1440,22 @@ export class WAStartupService {
       let options;
 
       if (this.localProxy.enabled) {
-        this.logger.verbose('Proxy enabled');
-        options = {
-          agent: new ProxyAgent(this.localProxy.proxy as any),
-          fetchAgent: new ProxyAgent(this.localProxy.proxy as any),
-        };
+        this.logger.info('Proxy enabled: ' + this.localProxy.proxy);
+
+        if (this.localProxy.proxy.includes('proxyscrape')) {
+          const response = await axios.get(this.localProxy.proxy);
+          const text = response.data;
+          const proxyUrls = text.split('\r\n');
+          const rand = Math.floor(Math.random() * Math.floor(proxyUrls.length));
+          const proxyUrl = 'http://' + proxyUrls[rand];
+          options = {
+            agent: new ProxyAgent(proxyUrl as any),
+          };
+        } else {
+          options = {
+            agent: new ProxyAgent(this.localProxy.proxy as any),
+          };
+        }
       }
 
       const socketConfig: UserFacingSocketConfig = {
@@ -1287,16 +1469,23 @@ export class WAStartupService {
         browser,
         version,
         markOnlineOnConnect: this.localSettings.always_online,
+        retryRequestDelayMs: 250,
         connectTimeoutMs: 60_000,
         qrTimeout: 40_000,
         defaultQueryTimeoutMs: undefined,
         emitOwnEvents: false,
+        shouldIgnoreJid: (jid) => {
+          const isGroupJid = this.localSettings.groups_ignore && isJidGroup(jid);
+          const isBroadcast = !this.localSettings.read_status && isJidBroadcast(jid);
+
+          return isGroupJid || isBroadcast;
+        },
         msgRetryCounterCache: this.msgRetryCounterCache,
         getMessage: async (key) => (await this.getMessage(key)) as Promise<proto.IMessage>,
         generateHighQualityLinkPreview: true,
         syncFullHistory: false,
         userDevicesCache: this.userDevicesCache,
-        transactionOpts: { maxCommitRetries: 1, delayBetweenTriesMs: 10 },
+        transactionOpts: { maxCommitRetries: 10, delayBetweenTriesMs: 10 },
         patchMessageBeforeSending: (message) => {
           const requiresPatch = !!(message.buttonsMessage || message.listMessage || message.templateMessage);
           if (requiresPatch) {
@@ -1367,16 +1556,23 @@ export class WAStartupService {
         browser,
         version,
         markOnlineOnConnect: this.localSettings.always_online,
+        retryRequestDelayMs: 250,
         connectTimeoutMs: 60_000,
         qrTimeout: 40_000,
         defaultQueryTimeoutMs: undefined,
         emitOwnEvents: false,
+        shouldIgnoreJid: (jid) => {
+          const isGroupJid = this.localSettings.groups_ignore && isJidGroup(jid);
+          const isBroadcast = !this.localSettings.read_status && isJidBroadcast(jid);
+
+          return isGroupJid || isBroadcast;
+        },
         msgRetryCounterCache: this.msgRetryCounterCache,
         getMessage: async (key) => (await this.getMessage(key)) as Promise<proto.IMessage>,
         generateHighQualityLinkPreview: true,
         syncFullHistory: false,
         userDevicesCache: this.userDevicesCache,
-        transactionOpts: { maxCommitRetries: 1, delayBetweenTriesMs: 10 },
+        transactionOpts: { maxCommitRetries: 10, delayBetweenTriesMs: 10 },
         patchMessageBeforeSending: (message) => {
           const requiresPatch = !!(message.buttonsMessage || message.listMessage || message.templateMessage);
           if (requiresPatch) {
@@ -1426,10 +1622,10 @@ export class WAStartupService {
       }
 
       this.logger.verbose('Sending data to webhook in event CHATS_UPSERT');
-      await this.sendDataWebhook(Events.CHATS_UPSERT, chatsRaw);
+      this.sendDataWebhook(Events.CHATS_UPSERT, chatsRaw);
 
       this.logger.verbose('Inserting chats in database');
-      await this.repository.chat.insert(chatsRaw, this.instance.name, database.SAVE_DATA.CHATS);
+      this.repository.chat.insert(chatsRaw, this.instance.name, database.SAVE_DATA.CHATS);
     },
 
     'chats.update': async (
@@ -1447,7 +1643,7 @@ export class WAStartupService {
       });
 
       this.logger.verbose('Sending data to webhook in event CHATS_UPDATE');
-      await this.sendDataWebhook(Events.CHATS_UPDATE, chatsRaw);
+      this.sendDataWebhook(Events.CHATS_UPDATE, chatsRaw);
     },
 
     'chats.delete': async (chats: string[]) => {
@@ -1462,7 +1658,7 @@ export class WAStartupService {
       );
 
       this.logger.verbose('Sending data to webhook in event CHATS_DELETE');
-      await this.sendDataWebhook(Events.CHATS_DELETE, [...chats]);
+      this.sendDataWebhook(Events.CHATS_DELETE, [...chats]);
     },
   };
 
@@ -1530,10 +1726,10 @@ export class WAStartupService {
         }
 
         this.logger.verbose('Sending data to webhook in event CONTACTS_UPSERT');
-        await this.sendDataWebhook(Events.CONTACTS_UPSERT, contactsRaw);
+        this.sendDataWebhook(Events.CONTACTS_UPSERT, contactsRaw);
 
         this.logger.verbose('Inserting contacts in database');
-        await this.repository.contact.insert(contactsRaw, this.instance.name, database.SAVE_DATA.CONTACTS);
+        this.repository.contact.insert(contactsRaw, this.instance.name, database.SAVE_DATA.CONTACTS);
       } catch (error) {
         this.logger.error(error);
       }
@@ -1554,10 +1750,10 @@ export class WAStartupService {
       }
 
       this.logger.verbose('Sending data to webhook in event CONTACTS_UPDATE');
-      await this.sendDataWebhook(Events.CONTACTS_UPDATE, contactsRaw);
+      this.sendDataWebhook(Events.CONTACTS_UPDATE, contactsRaw);
 
       this.logger.verbose('Updating contacts in database');
-      await this.repository.contact.update(contactsRaw, this.instance.name, database.SAVE_DATA.CONTACTS);
+      this.repository.contact.update(contactsRaw, this.instance.name, database.SAVE_DATA.CONTACTS);
     },
   };
 
@@ -1625,10 +1821,10 @@ export class WAStartupService {
           }
 
           this.logger.verbose('Sending data to webhook in event CHATS_SET');
-          await this.sendDataWebhook(Events.CHATS_SET, chatsRaw);
+          this.sendDataWebhook(Events.CHATS_SET, chatsRaw);
 
           this.logger.verbose('Inserting chats in database');
-          await this.repository.chat.insert(chatsRaw, this.instance.name, database.SAVE_DATA.CHATS);
+          this.repository.chat.insert(chatsRaw, this.instance.name, database.SAVE_DATA.CHATS);
 
           const messagesRaw: MessageRaw[] = [];
           // TODO: It would be better get only the ids from repository, but for now it's not possible
@@ -1713,25 +1909,13 @@ export class WAStartupService {
     ) => {
       try {
         this.logger.verbose('Event received: messages.upsert');
-
         for (const received of messages) {
           if (
             (type !== 'notify' && type !== 'append') ||
-            !received?.message ||
             received.message?.protocolMessage ||
-            //received.message.senderKeyDistributionMessage ||
             received.message?.pollUpdateMessage
           ) {
             this.logger.verbose('message rejected');
-            const d = new Date();
-            if (received?.key?.remoteJid !== 'status@broadcast') {
-              console.log();
-              console.log(
-                `received.message rejected. type: ${type} - ${d.getHours()}:${d.getMinutes()}`,
-                received?.message ? received?.message : received,
-              );
-              console.log();
-            }
             continue;
           }
 
@@ -1759,7 +1943,6 @@ export class WAStartupService {
                 reuploadRequest: this.client.updateMediaMessage,
               },
             );
-            //console.log(buffer);
             messageRaw = {
               key: received.key,
               pushName: received.pushName,
@@ -1795,15 +1978,15 @@ export class WAStartupService {
           this.logger.log(messageRaw);
 
           this.logger.verbose('Sending data to webhook in event MESSAGES_UPSERT');
-          await this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw);
+          this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw);
 
-          let chatwootSentMessage: any;
-          if (this.localChatwoot.enabled) {
-            chatwootSentMessage = await this.chatwootService.eventWhatsapp(
+          if (this.localChatwoot.enabled && !received.key.id.includes('@broadcast')) {
+            const chatwootSentMessage = await this.chatwootService.eventWhatsapp(
               Events.MESSAGES_UPSERT,
               { instanceName: this.instance.name },
               messageRaw,
             );
+
             if (chatwootSentMessage?.id) {
               messageRaw.chatwootMessageId = chatwootSentMessage.id;
             }
@@ -1817,22 +2000,18 @@ export class WAStartupService {
             );
           }
 
-          if (this.localTypebot.enabled && type === 'notify') {
-            if (!(this.localTypebot.listening_from_me === false && messageRaw.key.fromMe === true)) {
-              let prefilledVariables;
-              if (this.localChatwoot.enabled && chatwootSentMessage) {
-                prefilledVariables = {
-                  chatwootConversationId: chatwootSentMessage.conversation_id,
-                  chatwootAccountId: this.localChatwoot.account_id,
-                };
-              }
+          const typebotSessionRemoteJid = this.localTypebot.sessions?.find(
+            (session) => session.remoteJid === received.key.remoteJid,
+          );
 
-              await this.typebotService.sendTypebot(
-                { instanceName: this.instance.name },
-                messageRaw.key.remoteJid,
-                messageRaw,
-                prefilledVariables,
-              );
+          if ((this.localTypebot.enabled && type === 'notify') || typebotSessionRemoteJid) {
+            if (!(this.localTypebot.listening_from_me === false && messageRaw.key.fromMe === true)) {
+              if (messageRaw.messageType !== 'reactionMessage')
+                await this.typebotService.sendTypebot(
+                  { instanceName: this.instance.name },
+                  messageRaw.key.remoteJid,
+                  messageRaw,
+                );
             }
           }
 
@@ -1874,7 +2053,7 @@ export class WAStartupService {
             };
 
             this.logger.verbose('Sending data to webhook in event CONTACTS_UPDATE');
-            await this.sendDataWebhook(Events.CONTACTS_UPDATE, contactRaw);
+            this.sendDataWebhook(Events.CONTACTS_UPDATE, contactRaw);
 
             if (this.localChatwoot.enabled) {
               await this.chatwootService.eventWhatsapp(
@@ -1892,10 +2071,10 @@ export class WAStartupService {
           this.logger.verbose('Contact not found in database');
 
           this.logger.verbose('Sending data to webhook in event CONTACTS_UPSERT');
-          await this.sendDataWebhook(Events.CONTACTS_UPSERT, contactRaw);
+          this.sendDataWebhook(Events.CONTACTS_UPSERT, contactRaw);
 
           this.logger.verbose('Inserting contact in database');
-          await this.repository.contact.insert([contactRaw], this.instance.name, database.SAVE_DATA.CONTACTS);
+          this.repository.contact.insert([contactRaw], this.instance.name, database.SAVE_DATA.CONTACTS);
         }
       } catch (error) {
         error.message = `Error on messages.upsert: ${error?.message}`;
@@ -1944,7 +2123,7 @@ export class WAStartupService {
             this.logger.verbose('Message deleted');
 
             this.logger.verbose('Sending data to webhook in event MESSAGE_DELETE');
-            await this.sendDataWebhook(Events.MESSAGES_DELETE, key);
+            this.sendDataWebhook(Events.MESSAGES_DELETE, key);
 
             const message: MessageUpdateRaw = {
               ...key,
@@ -1975,10 +2154,10 @@ export class WAStartupService {
           this.logger.verbose(message);
 
           this.logger.verbose('Sending data to webhook in event MESSAGES_UPDATE');
-          await this.sendDataWebhook(Events.MESSAGES_UPDATE, message);
+          this.sendDataWebhook(Events.MESSAGES_UPDATE, message);
 
           this.logger.verbose('Inserting message in database');
-          await this.repository.messageUpdate.insert([message], this.instance.name, database.SAVE_DATA.MESSAGE_UPDATE);
+          this.repository.messageUpdate.insert([message], this.instance.name, database.SAVE_DATA.MESSAGE_UPDATE);
         }
       }
     },
@@ -2173,8 +2352,8 @@ export class WAStartupService {
   private createJid(number: string): string {
     this.logger.verbose('Creating jid with number: ' + number);
 
-    if (number.includes('@g.us') || number.includes('@s.whatsapp.net')) {
-      this.logger.verbose('Number already contains @g.us or @s.whatsapp.net');
+    if (number.includes('@g.us') || number.includes('@s.whatsapp.net') || number.includes('@lid')) {
+      this.logger.verbose('Number already contains @g.us or @s.whatsapp.net or @lid');
       return number;
     }
 
@@ -2398,6 +2577,20 @@ export class WAStartupService {
           !message['conversation'] &&
           sender !== 'status@broadcast'
         ) {
+          if (message['reactionMessage']) {
+            this.logger.verbose('Sending reaction');
+            return await this.client.sendMessage(
+              sender,
+              {
+                react: {
+                  text: message['reactionMessage']['text'],
+                  key: message['reactionMessage']['key'],
+                },
+              } as unknown as AnyMessageContent,
+              option as unknown as MiscMessageGenerationOptions,
+            );
+          }
+
           if (!message['audio']) {
             this.logger.verbose('Sending message');
             return await this.client.sendMessage(
@@ -2413,7 +2606,6 @@ export class WAStartupService {
             );
           }
         }
-
         if (message['conversation']) {
           this.logger.verbose('Sending message');
           return await this.client.sendMessage(
@@ -2462,7 +2654,7 @@ export class WAStartupService {
       this.logger.log(messageRaw);
 
       this.logger.verbose('Sending data to webhook in event SEND_MESSAGE');
-      await this.sendDataWebhook(Events.SEND_MESSAGE, messageRaw);
+      this.sendDataWebhook(Events.SEND_MESSAGE, messageRaw);
 
       if (this.localChatwoot.enabled && !isChatwoot) {
         this.chatwootService.eventWhatsapp(Events.SEND_MESSAGE, { instanceName: this.instance.name }, messageRaw);
@@ -2486,6 +2678,38 @@ export class WAStartupService {
   public get connectionStatus() {
     this.logger.verbose('Getting connection status');
     return this.stateConnection;
+  }
+
+  public async sendPresence(data: SendPresenceDto) {
+    try {
+      const { number } = data;
+
+      this.logger.verbose(`Check if number "${number}" is WhatsApp`);
+      const isWA = (await this.whatsappNumber({ numbers: [number] }))?.shift();
+
+      this.logger.verbose(`Exists: "${isWA.exists}" | jid: ${isWA.jid}`);
+      if (!isWA.exists && !isJidGroup(isWA.jid) && !isWA.jid.includes('@broadcast')) {
+        throw new BadRequestException(isWA);
+      }
+
+      const sender = isWA.jid;
+
+      this.logger.verbose('Sending presence');
+      await this.client.presenceSubscribe(sender);
+      this.logger.verbose('Subscribing to presence');
+
+      await this.client.sendPresenceUpdate(data.options?.presence ?? 'composing', sender);
+      this.logger.verbose('Sending presence update: ' + data.options?.presence ?? 'composing');
+
+      await delay(data.options.delay);
+      this.logger.verbose('Set delay: ' + data.options.delay);
+
+      await this.client.sendPresenceUpdate('paused', sender);
+      this.logger.verbose('Sending presence update: paused');
+    } catch (error) {
+      this.logger.error(error);
+      throw new BadRequestException(error.toString());
+    }
   }
 
   // Send Message Controller
@@ -2674,10 +2898,14 @@ export class WAStartupService {
 
       let mimetype: string;
 
-      if (isURL(mediaMessage.media)) {
-        mimetype = getMIMEType(mediaMessage.media);
+      if (mediaMessage.mimetype) {
+        mimetype = mediaMessage.mimetype;
       } else {
-        mimetype = getMIMEType(mediaMessage.fileName);
+        if (isURL(mediaMessage.media)) {
+          mimetype = getMIMEType(mediaMessage.media);
+        } else {
+          mimetype = getMIMEType(mediaMessage.fileName);
+        }
       }
 
       this.logger.verbose('Mimetype: ' + mimetype);
@@ -3306,7 +3534,16 @@ export class WAStartupService {
 
   public async fetchPrivacySettings() {
     this.logger.verbose('Fetching privacy settings');
-    return await this.client.fetchPrivacySettings();
+    const privacy = await this.client.fetchPrivacySettings();
+
+    return {
+      readreceipts: privacy.readreceipts,
+      profile: privacy.profile,
+      status: privacy.status,
+      online: privacy.online,
+      last: privacy.last,
+      groupadd: privacy.groupadd,
+    };
   }
 
   public async updatePrivacySettings(settings: PrivacySettingDto) {
@@ -3330,7 +3567,7 @@ export class WAStartupService {
       await this.client.updateGroupsAddPrivacy(settings.privacySettings.groupadd);
       this.logger.verbose('Groups add privacy updated');
 
-      this.client?.ws?.close();
+      this.reloadConnection();
 
       return {
         update: 'success',
@@ -3418,8 +3655,11 @@ export class WAStartupService {
       } else {
         throw new BadRequestException('"profilePicture" must be a url or a base64');
       }
+
       await this.client.updateProfilePicture(this.instance.wuid, pic);
       this.logger.verbose('Profile picture updated');
+
+      this.reloadConnection();
 
       return { update: 'success' };
     } catch (error) {
@@ -3431,6 +3671,8 @@ export class WAStartupService {
     this.logger.verbose('Removing profile picture');
     try {
       await this.client.removeProfilePicture(this.instance.wuid);
+
+      this.reloadConnection();
 
       return { update: 'success' };
     } catch (error) {
@@ -3546,7 +3788,7 @@ export class WAStartupService {
           subject: group.subject,
           subjectOwner: group.subjectOwner,
           subjectTime: group.subjectTime,
-          size: group.size,
+          size: group.participants.length,
           creation: group.creation,
           owner: group.owner,
           desc: group.desc,

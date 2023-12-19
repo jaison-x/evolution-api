@@ -6,7 +6,7 @@ import Jimp from 'jimp';
 import mimeTypes from 'mime-types';
 import path from 'path';
 
-import { ConfigService } from '../../config/env.config';
+import { ConfigService, HttpServer } from '../../config/env.config';
 import { Logger } from '../../config/logger.config';
 import { ROOT_DIR } from '../../config/path.config';
 import { ChatwootDto } from '../dto/chatwoot.dto';
@@ -58,25 +58,26 @@ export class ChatwootService {
 
   private async getProvider(instance: InstanceDto) {
     this.logger.verbose('get provider to instance: ' + instance.instanceName);
-    try {
-      const provider = await this.waMonitor.waInstances[instance.instanceName].findChatwoot();
+    const provider = await this.waMonitor.waInstances[instance.instanceName]?.findChatwoot();
 
-      if (!provider) {
-        this.logger.warn('provider not found');
-        return null;
-      }
-
-      this.logger.verbose('provider found');
-
-      return provider;
-    } catch (error) {
-      this.logger.error('provider not found');
+    if (!provider) {
+      this.logger.warn('provider not found');
       return null;
     }
+
+    this.logger.verbose('provider found');
+
+    return provider;
+    // try {
+    // } catch (error) {
+    //   this.logger.error('provider not found');
+    //   return null;
+    // }
   }
 
   private async clientCw(instance: InstanceDto) {
     this.logger.verbose('get client to instance: ' + instance.instanceName);
+
     const provider = await this.getProvider(instance);
 
     if (!provider) {
@@ -105,9 +106,22 @@ export class ChatwootService {
 
   public async create(instance: InstanceDto, data: ChatwootDto) {
     this.logger.verbose('create chatwoot: ' + instance.instanceName);
+
     await this.waMonitor.waInstances[instance.instanceName].setChatwoot(data);
 
     this.logger.verbose('chatwoot created');
+
+    if (data.auto_create) {
+      const urlServer = this.configService.get<HttpServer>('SERVER').URL;
+
+      await this.initInstanceChatwoot(
+        instance,
+        instance.instanceName.split('-cwId-')[0],
+        `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
+        true,
+        data.number,
+      );
+    }
     return data;
   }
 
@@ -235,10 +249,6 @@ export class ChatwootService {
         inbox_id: inboxId.toString(),
       };
 
-      if (this.provider.conversation_pending) {
-        data['status'] = 'pending';
-      }
-
       const conversation = await client.conversations.create({
         accountId: this.provider.account_id,
         data,
@@ -344,14 +354,18 @@ export class ChatwootService {
     }
 
     this.logger.verbose('update contact in chatwoot');
-    const contact = await client.contacts.update({
-      accountId: this.provider.account_id,
-      id,
-      data,
-    });
+    try {
+      const contact = await client.contacts.update({
+        accountId: this.provider.account_id,
+        id,
+        data,
+      });
 
-    this.logger.verbose('contact updated');
-    return contact;
+      this.logger.verbose('contact updated');
+      return contact;
+    } catch (error) {
+      this.logger.error(error);
+    }
   }
 
   public async findContact(instance: InstanceDto, phoneNumber: string) {
@@ -493,6 +507,9 @@ export class ChatwootService {
             contact = await this.updateContact(instance, findContact.id, {
               avatar_url: picture_url.profilePictureUrl || null,
             });
+          }
+          if (!contact) {
+            contact = await this.findContact(instance, chatId);
           }
         } else {
           const jid = isGroup ? null : body.key.remoteJid;
@@ -940,6 +957,7 @@ export class ChatwootService {
         };
 
         const messageSent = await waInstance?.audioWhatsapp(data, true);
+
         this.logger.verbose('audio sent');
         return messageSent;
       }
@@ -965,6 +983,7 @@ export class ChatwootService {
       }
 
       const messageSent = await waInstance?.mediaMessage(data, true);
+
       this.logger.verbose('media sent');
       return messageSent;
     } catch (error) {
@@ -1354,6 +1373,11 @@ export class ChatwootService {
           formattedContact += `\n**number ${numberCount}:** ${phoneNumber}`;
           numberCount++;
         }
+        if (key.includes('TEL')) {
+          const phoneNumber = contactInfo[key];
+          formattedContact += `\n**number:** ${phoneNumber}`;
+          numberCount++;
+        }
       });
 
       this.logger.verbose('message content: ' + formattedContact);
@@ -1380,6 +1404,11 @@ export class ChatwootService {
           if (key.startsWith('item') && key.includes('TEL')) {
             const phoneNumber = contactInfo[key];
             formattedContact += `\n**number ${numberCount}:** ${phoneNumber}`;
+            numberCount++;
+          }
+          if (key.includes('TEL')) {
+            const phoneNumber = contactInfo[key];
+            formattedContact += `\n**number:** ${phoneNumber}`;
             numberCount++;
           }
         });
@@ -1515,6 +1544,11 @@ export class ChatwootService {
 
         this.logger.verbose('get conversation message');
         const bodyMessage = await this.getConversationMessage(body.message);
+
+        if (bodyMessage && bodyMessage.includes('Por favor, classifique esta conversa, http')) {
+          this.logger.verbose('conversation is closed');
+          return;
+        }
 
         const isMedia = this.isMediaMessage(body.message);
 

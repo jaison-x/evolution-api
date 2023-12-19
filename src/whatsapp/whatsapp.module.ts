@@ -13,8 +13,8 @@ import { ProxyController } from './controllers/proxy.controller';
 import { RabbitmqController } from './controllers/rabbitmq.controller';
 import { SendMessageController } from './controllers/sendMessage.controller';
 import { SettingsController } from './controllers/settings.controller';
+import { SqsController } from './controllers/sqs.controller';
 import { TypebotController } from './controllers/typebot.controller';
-import { ViewsController } from './controllers/views.controller';
 import { WebhookController } from './controllers/webhook.controller';
 import { WebsocketController } from './controllers/websocket.controller';
 import {
@@ -29,6 +29,7 @@ import {
   ProxyModel,
   RabbitmqModel,
   SettingsModel,
+  SqsModel,
   TypebotModel,
   WebhookModel,
   WebsocketModel,
@@ -45,6 +46,7 @@ import { ProxyRepository } from './repository/proxy.repository';
 import { RabbitmqRepository } from './repository/rabbitmq.repository';
 import { RepositoryBroker } from './repository/repository.manager';
 import { SettingsRepository } from './repository/settings.repository';
+import { SqsRepository } from './repository/sqs.repository';
 import { TypebotRepository } from './repository/typebot.repository';
 import { WebhookRepository } from './repository/webhook.repository';
 import { WebsocketRepository } from './repository/websocket.repository';
@@ -56,6 +58,7 @@ import { WAMonitoringService } from './services/monitor.service';
 import { ProxyService } from './services/proxy.service';
 import { RabbitmqService } from './services/rabbitmq.service';
 import { SettingsService } from './services/settings.service';
+import { SqsService } from './services/sqs.service';
 import { TypebotService } from './services/typebot.service';
 import { WebhookService } from './services/webhook.service';
 import { WebsocketService } from './services/websocket.service';
@@ -72,6 +75,7 @@ const websocketRepository = new WebsocketRepository(WebsocketModel, configServic
 const proxyRepository = new ProxyRepository(ProxyModel, configService);
 const chamaaiRepository = new ChamaaiRepository(ChamaaiModel, configService);
 const rabbitmqRepository = new RabbitmqRepository(RabbitmqModel, configService);
+const sqsRepository = new SqsRepository(SqsModel, configService);
 const chatwootRepository = new ChatwootRepository(ChatwootModel, configService);
 const settingsRepository = new SettingsRepository(SettingsModel, configService);
 const authRepository = new AuthRepository(AuthModel, configService);
@@ -87,6 +91,7 @@ export const repository = new RepositoryBroker(
   settingsRepository,
   websocketRepository,
   rabbitmqRepository,
+  sqsRepository,
   typebotRepository,
   proxyRepository,
   chamaaiRepository,
@@ -102,7 +107,7 @@ export const waMonitor = new WAMonitoringService(eventEmitter, configService, re
 
 const authService = new AuthService(configService, waMonitor, repository);
 
-const typebotService = new TypebotService(waMonitor);
+const typebotService = new TypebotService(waMonitor, configService);
 
 export const typebotController = new TypebotController(typebotService);
 
@@ -125,6 +130,10 @@ export const chamaaiController = new ChamaaiController(chamaaiService);
 const rabbitmqService = new RabbitmqService(waMonitor);
 
 export const rabbitmqController = new RabbitmqController(rabbitmqService);
+
+const sqsService = new SqsService(waMonitor);
+
+export const sqsController = new SqsController(sqsService);
 
 const chatwootService = new ChatwootService(waMonitor, configService, repository);
 
@@ -149,10 +158,11 @@ export const instanceController = new InstanceController(
   settingsService,
   websocketService,
   rabbitmqService,
+  proxyService,
+  sqsService,
   typebotService,
   cache,
 );
-export const viewsController = new ViewsController(waMonitor, configService);
 export const sendMessageController = new SendMessageController(waMonitor);
 export const chatController = new ChatController(waMonitor);
 export const groupController = new GroupController(waMonitor);

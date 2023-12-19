@@ -47,7 +47,11 @@ class PollMessage {
   values: string[];
   messageSecret?: Uint8Array;
 }
+
 export class SendTextDto extends Metadata {
+  textMessage: TextMessage;
+}
+export class SendPresence extends Metadata {
   textMessage: TextMessage;
 }
 
@@ -62,6 +66,7 @@ export class SendPollDto extends Metadata {
 export type MediaType = 'image' | 'document' | 'video' | 'audio';
 export class MediaMessage {
   mediatype: MediaType;
+  mimetype?: string;
   caption?: string;
   // for document
   fileName?: string;

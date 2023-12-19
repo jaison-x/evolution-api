@@ -45,6 +45,11 @@ const messageSchema = new Schema<MessageRaw>({
   isBot: { type: Boolean, required: false, default: false },
 });
 
+messageSchema.index({ chatwootMessageId: 1, owner: 1 });
+messageSchema.index({ 'key.id': 1 });
+messageSchema.index({ 'key.id': 1, owner: 1 });
+messageSchema.index({ owner: 1 });
+
 export const MessageModel = dbserver?.model(MessageRaw.name, messageSchema, 'messages');
 export type IMessageModel = typeof MessageModel;
 

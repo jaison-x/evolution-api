@@ -52,11 +52,12 @@ export class ChatwootController {
       data.days_limit_import_messages = 0;
       data.auto_label = false;
       data.auto_label_config = [];
+      data.auto_create = false;
     }
 
     data.name_inbox = instance.instanceName;
 
-    const result = this.chatwootService.create(instance, data);
+    const result = await this.chatwootService.create(instance, data);
 
     const urlServer = this.configService.get<HttpServer>('SERVER').URL;
 
@@ -74,7 +75,7 @@ export class ChatwootController {
 
     const urlServer = this.configService.get<HttpServer>('SERVER').URL;
 
-    if (Object.keys(result).length === 0) {
+    if (Object.keys(result || {}).length === 0) {
       return {
         enabled: false,
         url: '',

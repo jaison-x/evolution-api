@@ -28,6 +28,8 @@ export class InstanceDto {
   websocket_events?: string[];
   rabbitmq_enabled?: boolean;
   rabbitmq_events?: string[];
+  sqs_enabled?: boolean;
+  sqs_events?: string[];
   typebot_url?: string;
   typebot?: string;
   typebot_expire?: number;
@@ -35,6 +37,5 @@ export class InstanceDto {
   typebot_delay_message?: number;
   typebot_unknown_message?: string;
   typebot_listening_from_me?: boolean;
-  proxy_enabled?: boolean;
-  proxy_proxy?: string;
+  proxy?: string;
 }

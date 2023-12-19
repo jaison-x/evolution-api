@@ -15,6 +15,7 @@ import { MessageUpRepository } from './messageUp.repository';
 import { ProxyRepository } from './proxy.repository';
 import { RabbitmqRepository } from './rabbitmq.repository';
 import { SettingsRepository } from './settings.repository';
+import { SqsRepository } from './sqs.repository';
 import { TypebotRepository } from './typebot.repository';
 import { WebhookRepository } from './webhook.repository';
 import { WebsocketRepository } from './websocket.repository';
@@ -29,6 +30,7 @@ export class RepositoryBroker {
     public readonly settings: SettingsRepository,
     public readonly websocket: WebsocketRepository,
     public readonly rabbitmq: RabbitmqRepository,
+    public readonly sqs: SqsRepository,
     public readonly typebot: TypebotRepository,
     public readonly proxy: ProxyRepository,
     public readonly chamaai: ChamaaiRepository,
@@ -66,6 +68,7 @@ export class RepositoryBroker {
         const settingsDir = join(storePath, 'settings');
         const websocketDir = join(storePath, 'websocket');
         const rabbitmqDir = join(storePath, 'rabbitmq');
+        const sqsDir = join(storePath, 'sqs');
         const typebotDir = join(storePath, 'typebot');
         const proxyDir = join(storePath, 'proxy');
         const chamaaiDir = join(storePath, 'chamaai');
@@ -114,6 +117,10 @@ export class RepositoryBroker {
         if (!fs.existsSync(rabbitmqDir)) {
           this.logger.verbose('creating rabbitmq dir: ' + rabbitmqDir);
           fs.mkdirSync(rabbitmqDir, { recursive: true });
+        }
+        if (!fs.existsSync(sqsDir)) {
+          this.logger.verbose('creating sqs dir: ' + sqsDir);
+          fs.mkdirSync(sqsDir, { recursive: true });
         }
         if (!fs.existsSync(typebotDir)) {
           this.logger.verbose('creating typebot dir: ' + typebotDir);

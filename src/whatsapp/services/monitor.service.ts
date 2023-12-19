@@ -13,12 +13,12 @@ import { RedisCache } from '../../libs/redis.client';
 import {
   AuthModel,
   ChamaaiModel,
-  ChatModel,
+  // ChatModel,
   ChatnodeModel,
   ChatwootModel,
-  ContactModel,
-  MessageModel,
-  MessageUpModel,
+  // ContactModel,
+  // MessageModel,
+  // MessageUpModel,
   ProxyModel,
   RabbitmqModel,
   SettingsModel,
@@ -40,7 +40,7 @@ export class WAMonitoringService {
 
     this.removeInstance();
     this.noConnection();
-    this.delInstanceFiles();
+    // this.delInstanceFiles();
 
     Object.assign(this.db, configService.get<Database>('DATABASE'));
     Object.assign(this.redis, configService.get<Redis>('REDIS'));
@@ -124,7 +124,7 @@ export class WAMonitoringService {
           if (this.configService.get<Auth>('AUTHENTICATION').EXPOSE_IN_FETCH_INSTANCES) {
             instanceData.instance['serverUrl'] = this.configService.get<HttpServer>('SERVER').URL;
 
-            instanceData.instance['apikey'] = (await this.repository.auth.find(key)).apikey;
+            instanceData.instance['apikey'] = (await this.repository.auth.find(key))?.apikey;
 
             instanceData.instance['chatwoot'] = chatwoot;
           }
@@ -143,7 +143,7 @@ export class WAMonitoringService {
           if (this.configService.get<Auth>('AUTHENTICATION').EXPOSE_IN_FETCH_INSTANCES) {
             instanceData.instance['serverUrl'] = this.configService.get<HttpServer>('SERVER').URL;
 
-            instanceData.instance['apikey'] = (await this.repository.auth.find(key)).apikey;
+            instanceData.instance['apikey'] = (await this.repository.auth.find(key))?.apikey;
 
             instanceData.instance['chatwoot'] = chatwoot;
           }
@@ -200,6 +200,7 @@ export class WAMonitoringService {
       await this.cache.delAll();
       return;
     }
+
     if (this.db.ENABLED && this.db.SAVE_DATA.INSTANCE) {
       this.logger.verbose('cleaning up instance in database: ' + instanceName);
       await this.repository.dbServer.connect();
@@ -280,7 +281,6 @@ export class WAMonitoringService {
     const instance = new WAStartupService(this.configService, this.eventEmitter, this.repository, this.cache);
     instance.instanceName = name;
     this.logger.verbose('Instance loaded: ' + name);
-
     await instance.connectToWhatsapp();
     this.logger.verbose('connectToWhatsapp: ' + name);
 
