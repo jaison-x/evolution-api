@@ -327,10 +327,10 @@ export class WAMonitoringService {
     this.logger.verbose('cleaning store database instance: ' + instanceName);
 
     // we dont want to delete some instance data in our specific use case when a instance is deleted
-    //await ChatModel.deleteMany({ owner: instanceName });
-    //await ContactModel.deleteMany({ owner: instanceName });
-    //await MessageUpModel.deleteMany({ owner: instanceName });
-    //await MessageModel.deleteMany({ owner: instanceName });
+    // await ChatModel.deleteMany({ owner: instanceName });
+    // await ContactModel.deleteMany({ owner: instanceName });
+    // await MessageUpModel.deleteMany({ owner: instanceName });
+    // await MessageModel.deleteMany({ owner: instanceName });
 
     await AuthModel.deleteMany({ _id: instanceName });
     await WebhookModel.deleteMany({ _id: instanceName });
