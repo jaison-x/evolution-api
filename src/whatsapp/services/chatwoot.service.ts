@@ -920,7 +920,11 @@ export class ChatwootService {
       const fileName = decodeURIComponent(parts[parts.length - 1]);
       this.logger.verbose('file name: ' + fileName);
 
-      const mimeType = mimeTypes.lookup(fileName).toString();
+      const response = await axios.get(media, {
+        responseType: 'arraybuffer',
+      });
+
+      const mimeType = response.headers['content-type'];
       this.logger.verbose('mime type: ' + mimeType);
 
       let type = 'document';
@@ -1015,8 +1019,16 @@ export class ChatwootService {
       this.logger.verbose('check if is group');
       const chatId =
         body.conversation.meta.sender?.phone_number?.replace('+', '') || body.conversation.meta.sender?.identifier;
-      const messageReceived = body.content;
-      const senderName = body?.sender?.name;
+      // Chatwoot to Whatsapp
+      const messageReceived = body.content
+        ? body.content
+            .replaceAll(/(?<!\*)\*((?!\s)([^\n*]+?)(?<!\s))\*(?!\*)/g, '_$1_') // Substitui * por _
+            .replaceAll(/\*{2}((?!\s)([^\n*]+?)(?<!\s))\*{2}/g, '*$1*') // Substitui ** por *
+            .replaceAll(/~{2}((?!\s)([^\n*]+?)(?<!\s))~{2}/g, '~$1~') // Substitui ~~ por ~
+            .replaceAll(/(?<!`)`((?!\s)([^`*]+?)(?<!\s))`(?!`)/g, '```$1```') // Substitui ` por ```
+        : body.content;
+
+      const senderName = body?.sender?.available_name || body?.sender?.name;
       const waInstance = this.waMonitor.waInstances[instance.instanceName];
 
       this.logger.verbose('check if is a message deletion');
@@ -1111,7 +1123,13 @@ export class ChatwootService {
         if (senderName === null || senderName === undefined) {
           formatText = messageReceived;
         } else {
-          formatText = this.provider.sign_msg ? `*${senderName}:*\n${messageReceived}` : messageReceived;
+          const formattedDelimiter = this.provider.sign_delimiter
+            ? this.provider.sign_delimiter.replaceAll('\\n', '\n')
+            : '\n';
+          const textToConcat = this.provider.sign_msg ? [`*${senderName}:*`] : [];
+          textToConcat.push(messageReceived);
+
+          formatText = textToConcat.join(formattedDelimiter);
         }
 
         for (const message of body.conversation.messages) {
@@ -1544,7 +1562,17 @@ export class ChatwootService {
         }
 
         this.logger.verbose('get conversation message');
-        const bodyMessage = await this.getConversationMessage(body.message);
+
+        // Whatsapp to Chatwoot
+        const originalMessage = await this.getConversationMessage(body.message);
+        const bodyMessage = originalMessage
+          ? originalMessage
+              .replaceAll(/\*((?!\s)([^\n*]+?)(?<!\s))\*/g, '**$1**')
+              .replaceAll(/_((?!\s)([^\n_]+?)(?<!\s))_/g, '*$1*')
+              .replaceAll(/~((?!\s)([^\n~]+?)(?<!\s))~/g, '~~$1~~')
+          : originalMessage;
+
+        this.logger.verbose('body message: ' + bodyMessage);
 
         if (bodyMessage && bodyMessage.includes('Por favor, classifique esta conversa, http')) {
           this.logger.verbose('conversation is closed');

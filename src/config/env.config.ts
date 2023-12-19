@@ -84,6 +84,8 @@ export type Chatnode = {
 
 export type EventsWebhook = {
   APPLICATION_STARTUP: boolean;
+  INSTANCE_CREATE: boolean;
+  INSTANCE_DELETE: boolean;
   QRCODE_UPDATED: boolean;
   MESSAGES_SET: boolean;
   MESSAGES_UPSERT: boolean;
@@ -132,7 +134,7 @@ export type SslConf = { PRIVKEY: string; FULLCHAIN: string };
 export type Webhook = { GLOBAL?: GlobalWebhook; EVENTS: EventsWebhook };
 export type ConfigSessionPhone = { CLIENT: string; NAME: string };
 export type QrCode = { LIMIT: number; COLOR: string };
-export type Typebot = { API_VERSION: string };
+export type Typebot = { API_VERSION: string; KEEP_OPEN: boolean };
 export type Production = boolean;
 
 export interface Env {
@@ -174,8 +176,8 @@ export class ConfigService {
     this.env = !(process.env?.DOCKER_ENV === 'true') ? this.envYaml() : this.envProcess();
     this.env.PRODUCTION = process.env?.NODE_ENV === 'PROD';
     if (process.env?.DOCKER_ENV === 'true') {
-      this.env.SERVER.TYPE = 'http';
-      this.env.SERVER.PORT = 8080;
+      this.env.SERVER.TYPE = process.env.SERVER_TYPE as 'http' | 'http';
+      this.env.SERVER.PORT = Number.parseInt(process.env.SERVER_PORT) || 8080;
     }
   }
 
@@ -186,7 +188,7 @@ export class ConfigService {
   private envProcess(): Env {
     return {
       SERVER: {
-        TYPE: process.env.SERVER_TYPE as 'http' | 'https',
+        TYPE: (process.env.SERVER_TYPE as 'http' | 'https') || 'http',
         PORT: Number.parseInt(process.env.SERVER_PORT) || 8080,
         URL: process.env.SERVER_URL,
       },
@@ -272,6 +274,8 @@ export class ConfigService {
         },
         EVENTS: {
           APPLICATION_STARTUP: process.env?.WEBHOOK_EVENTS_APPLICATION_STARTUP === 'true',
+          INSTANCE_CREATE: process.env?.WEBHOOK_EVENTS_INSTANCE_CREATE === 'true',
+          INSTANCE_DELETE: process.env?.WEBHOOK_EVENTS_INSTANCE_DELETE === 'true',
           QRCODE_UPDATED: process.env?.WEBHOOK_EVENTS_QRCODE_UPDATED === 'true',
           MESSAGES_SET: process.env?.WEBHOOK_EVENTS_MESSAGES_SET === 'true',
           MESSAGES_UPSERT: process.env?.WEBHOOK_EVENTS_MESSAGES_UPSERT === 'true',
@@ -309,6 +313,7 @@ export class ConfigService {
       },
       TYPEBOT: {
         API_VERSION: process.env?.TYPEBOT_API_VERSION || 'old',
+        KEEP_OPEN: process.env.TYPEBOT_KEEP_OPEN === 'true',
       },
       AUTHENTICATION: {
         TYPE: process.env.AUTHENTICATION_TYPE as 'apikey',

@@ -136,6 +136,9 @@ import { ChamaaiService } from './chamaai.service';
 import { ChatnodeService } from './chatnode.service';
 import { ChatwootService } from './chatwoot.service';
 import { TypebotService } from './typebot.service';
+
+const retryCache = {};
+
 export class WAStartupService {
   constructor(
     private readonly configService: ConfigService,
@@ -174,7 +177,7 @@ export class WAStartupService {
 
   private chatnodeService = new ChatnodeService(waMonitor, this.repository, this.configService, this.chatwootService);
 
-  private typebotService = new TypebotService(waMonitor, this.configService);
+  private typebotService = new TypebotService(waMonitor, this.configService, this.eventEmitter);
 
   private chamaaiService = new ChamaaiService(waMonitor, this.configService);
 
@@ -433,6 +436,7 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot url: ${data.url}`);
     this.logger.verbose(`Chatwoot inbox name: ${data.name_inbox}`);
     this.logger.verbose(`Chatwoot sign msg: ${data.sign_msg}`);
+    this.logger.verbose(`Chatwoot sign delimiter: ${data.sign_delimiter}`);
     this.logger.verbose(`Chatwoot reopen conversation: ${data.reopen_conversation}`);
     this.logger.verbose(`Chatwoot conversation pending: ${data.conversation_pending}`);
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
@@ -441,7 +445,8 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot auto_label: ${data.auto_label}`);
     this.logger.verbose(`Chatwoot auto_label_config : ${data.auto_label_config}`);
 
-    Object.assign(this.localChatwoot, data);
+    Object.assign(this.localChatwoot, { ...data, sign_delimiter: data.sign_msg ? data.sign_delimiter : null });
+
     this.logger.verbose('Chatwoot set');
   }
 
@@ -459,6 +464,7 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot url: ${data.url}`);
     this.logger.verbose(`Chatwoot inbox name: ${data.name_inbox}`);
     this.logger.verbose(`Chatwoot sign msg: ${data.sign_msg}`);
+    this.logger.verbose(`Chatwoot sign delimiter: ${data.sign_delimiter}`);
     this.logger.verbose(`Chatwoot reopen conversation: ${data.reopen_conversation}`);
     this.logger.verbose(`Chatwoot conversation pending: ${data.conversation_pending}`);
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
@@ -474,6 +480,7 @@ export class WAStartupService {
       url: data.url,
       name_inbox: data.name_inbox,
       sign_msg: data.sign_msg,
+      sign_delimiter: data.sign_delimiter || null,
       reopen_conversation: data.reopen_conversation,
       conversation_pending: data.conversation_pending,
       import_contacts: data.import_contacts,
@@ -1320,10 +1327,14 @@ export class WAStartupService {
       this.logger.verbose('Connection opened');
       this.instance.wuid = this.client.user.id.replace(/:\d+/, '');
       this.instance.profilePictureUrl = (await this.profilePicture(this.instance.wuid)).profilePictureUrl;
+      const formattedWuid = this.instance.wuid.split('@')[0].padEnd(30, ' ');
+      const formattedName = this.instance.name.split('@')[0].padEnd(30, ' ');
       this.logger.info(
         `
         ┌──────────────────────────────┐
         │    CONNECTED TO WHATSAPP     │
+        │${formattedWuid}│
+        │${formattedName}│
         └──────────────────────────────┘`.replace(/^ +/gm, '  '),
       );
 
@@ -1471,7 +1482,7 @@ export class WAStartupService {
         },
         logger: P({ level: this.logBaileys }),
         printQRInTerminal: false,
-        browser,
+        browser: number ? ['Chrome (Linux)', session.NAME, release()] : browser,
         version,
         markOnlineOnConnect: this.localSettings.always_online,
         retryRequestDelayMs: 250,
@@ -1558,7 +1569,7 @@ export class WAStartupService {
         },
         logger: P({ level: this.logBaileys }),
         printQRInTerminal: false,
-        browser,
+        browser: this.phoneNumber ? ['Chrome (Linux)', session.NAME, release()] : browser,
         version,
         markOnlineOnConnect: this.localSettings.always_online,
         retryRequestDelayMs: 250,
@@ -2247,12 +2258,27 @@ export class WAStartupService {
         if (events['messages.upsert']) {
           this.logger.verbose('Listening event: messages.upsert');
           const payload = events['messages.upsert'];
+          if (payload.messages.find((a) => a?.messageStubType === 2)) {
+            const msg = payload.messages[0];
+            retryCache[msg.key.id] = msg;
+            return;
+          }
           this.messageHandle['messages.upsert'](payload, database, settings);
         }
 
         if (events['messages.update']) {
           this.logger.verbose('Listening event: messages.update');
           const payload = events['messages.update'];
+          payload.forEach((message) => {
+            if (retryCache[message.key.id]) {
+              this.client.ev.emit('messages.upsert', {
+                messages: [message],
+                type: 'notify',
+              });
+              delete retryCache[message.key.id];
+              return;
+            }
+          });
           this.messageHandle['messages.update'](payload, database, settings);
         }
 
@@ -2907,7 +2933,9 @@ export class WAStartupService {
         mimetype = mediaMessage.mimetype;
       } else {
         if (isURL(mediaMessage.media)) {
-          mimetype = getMIMEType(mediaMessage.media);
+          const response = await axios.get(mediaMessage.media, { responseType: 'arraybuffer' });
+
+          mimetype = response.headers['content-type'];
         } else {
           mimetype = getMIMEType(mediaMessage.fileName);
         }
