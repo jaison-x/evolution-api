@@ -476,6 +476,11 @@ export class WAStartupService {
       sign_msg: data.sign_msg,
       reopen_conversation: data.reopen_conversation,
       conversation_pending: data.conversation_pending,
+      import_contacts: data.import_contacts,
+      import_messages: data.import_messages,
+      days_limit_import_messages: data.days_limit_import_messages,
+      auto_label: data.auto_label,
+      auto_label_config: data.auto_label_config,
     };
   }
 
