@@ -1328,15 +1328,17 @@ export class WAStartupService {
       this.instance.wuid = this.client.user.id.replace(/:\d+/, '');
       this.instance.profilePictureUrl = (await this.profilePicture(this.instance.wuid)).profilePictureUrl;
       const formattedWuid = this.instance.wuid.split('@')[0].padEnd(30, ' ');
-      const formattedName = this.instance.name.split('@')[0].padEnd(30, ' ');
+      const formattedName = this.instance.name;
       this.logger.info(
         `
         ┌──────────────────────────────┐
         │    CONNECTED TO WHATSAPP     │
-        │${formattedWuid}│
-        │${formattedName}│
         └──────────────────────────────┘`.replace(/^ +/gm, '  '),
       );
+      this.logger.info(`
+        wuid: ${formattedWuid}
+        name: ${formattedName}
+      `);
 
       if (this.localChatwoot.enabled) {
         this.chatwootService.eventWhatsapp(
@@ -2004,7 +2006,11 @@ export class WAStartupService {
             );
 
             if (chatwootSentMessage?.id) {
-              messageRaw.chatwootMessageId = chatwootSentMessage.id;
+              messageRaw.chatwoot = {
+                messageId: chatwootSentMessage.id,
+                inboxId: chatwootSentMessage.inbox_id,
+                conversationId: chatwootSentMessage.conversation_id,
+              };
             }
           }
 
@@ -2156,6 +2162,15 @@ export class WAStartupService {
               this.instance.name,
               database.SAVE_DATA.MESSAGE_UPDATE,
             );
+
+            if (this.localChatwoot.enabled) {
+              this.chatwootService.eventWhatsapp(
+                Events.MESSAGES_DELETE,
+                { instanceName: this.instance.name },
+                { key: key },
+              );
+            }
+
             return;
           }
 
