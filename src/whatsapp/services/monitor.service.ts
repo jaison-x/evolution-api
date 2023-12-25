@@ -446,8 +446,10 @@ export class WAMonitoringService {
     this.eventEmitter.on('logout.instance', async (instanceName: string) => {
       this.logger.verbose('logout instance: ' + instanceName);
       try {
-        this.logger.verbose('request cleaning up instance: ' + instanceName);
-        this.cleaningUp(instanceName);
+        // we don't want to trigger cleaningUp instances in logout event
+        // because if some instance is close and the api restart, the instance is deleted.
+        //this.logger.verbose('request cleaning up instance: ' + instanceName);
+        //this.cleaningUp(instanceName);
       } finally {
         this.logger.warn(`Instance "${instanceName}" - LOGOUT`);
       }
