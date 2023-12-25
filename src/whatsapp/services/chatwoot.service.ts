@@ -1,4 +1,5 @@
 import ChatwootClient from '@figuro/chatwoot-sdk';
+import { delay } from '@whiskeysockets/baileys';
 import axios from 'axios';
 import FormData from 'form-data';
 import { createReadStream, readFileSync, unlinkSync, writeFileSync } from 'fs';
@@ -1150,6 +1151,8 @@ export class ChatwootService {
                 quoted: await this.getQuotedMessage(body, instance),
               };
 
+              // when using s3 in chatwoot, we need to wait some time for the file to be available to download.
+              await delay(Math.max(attachment.file_size / 2500, 300));
               const messageSent = await this.sendAttachment(
                 waInstance,
                 chatId,
