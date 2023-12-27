@@ -29,16 +29,24 @@ export class ChatwootService {
     private readonly configService: ConfigService,
     private readonly repository: RepositoryBroker,
   ) {
+    // messageCache is used to support Chatwoot version <= 3.3.1.
+    // after this version we can remove use of message cache and use source_id to check webhook needs to be ignored
     this.messageCache = {};
   }
 
-  private isMessageInCache(instance: InstanceDto, id: number) {
+  private isMessageInCache(instance: InstanceDto, id: number, remove = true) {
     this.logger.verbose('check if message is in cache');
     if (!this.messageCache[instance.instanceName]) {
       return false;
     }
 
-    return this.messageCache[instance.instanceName].has(id);
+    const hasId = this.messageCache[instance.instanceName].has(id);
+
+    if (remove) {
+      this.messageCache[instance.instanceName].delete(id);
+    }
+
+    return hasId;
   }
 
   private addMessageToCache(instance: InstanceDto, id: number) {
@@ -637,6 +645,7 @@ export class ChatwootService {
       filename: string;
     }[],
     messageBody?: any,
+    sourceId?: string,
   ) {
     this.logger.verbose('create message to instance: ' + instance.instanceName);
 
@@ -658,6 +667,7 @@ export class ChatwootService {
         message_type: messageType,
         attachments: attachments,
         private: privateMessage || false,
+        source_id: sourceId,
         content_attributes: {
           ...replyToIds,
         },
@@ -758,6 +768,7 @@ export class ChatwootService {
     content?: string,
     instance?: InstanceDto,
     messageBody?: any,
+    sourceId?: string,
   ) {
     this.logger.verbose('send data to chatwoot');
 
@@ -782,6 +793,10 @@ export class ChatwootService {
           ...replyToIds,
         });
       }
+    }
+
+    if (sourceId) {
+      data.append('source_id', sourceId);
     }
 
     this.logger.verbose('get client to instance: ' + this.provider.instanceName);
@@ -1098,7 +1113,13 @@ export class ChatwootService {
       if (body.message_type === 'outgoing' && body?.conversation?.messages?.length && chatId !== '123456') {
         this.logger.verbose('check if is group');
 
-        if (this.isMessageInCache(instance, body.id)) {
+        // messageCache is used to support Chatwoot version <= 3.3.1.
+        // after this version we can remove use of message cache and use only source_id value check
+        // use of source_id is better for performance
+        if (
+          body?.conversation?.messages[0]?.source_id?.substring(0, 5) === 'WAID:' ||
+          this.isMessageInCache(instance, body.id)
+        ) {
           this.logger.verbose('message is cached');
           return { message: 'bot' };
         }
@@ -1663,7 +1684,15 @@ export class ChatwootService {
             }
 
             this.logger.verbose('send data to chatwoot');
-            const send = await this.sendData(getConversation, fileName, messageType, content, instance, body);
+            const send = await this.sendData(
+              getConversation,
+              fileName,
+              messageType,
+              content,
+              instance,
+              body,
+              'WAID:' + body.key.id,
+            );
 
             if (!send) {
               this.logger.warn('message not sent');
@@ -1677,7 +1706,15 @@ export class ChatwootService {
             this.logger.verbose('message is not group');
 
             this.logger.verbose('send data to chatwoot');
-            const send = await this.sendData(getConversation, fileName, messageType, bodyMessage, instance, body);
+            const send = await this.sendData(
+              getConversation,
+              fileName,
+              messageType,
+              bodyMessage,
+              instance,
+              body,
+              'WAID:' + body.key.id,
+            );
 
             if (!send) {
               this.logger.warn('message not sent');
@@ -1708,6 +1745,7 @@ export class ChatwootService {
               {
                 message: { extendedTextMessage: { contextInfo: { stanzaId: reactionMessage.key.id } } },
               },
+              'WAID:' + body.key.id,
             );
             if (!send) {
               this.logger.warn('message not sent');
@@ -1763,6 +1801,7 @@ export class ChatwootService {
             `${bodyMessage}\n\n\n**${title}**\n${description}\n${adsMessage.sourceUrl}`,
             instance,
             body,
+            'WAID:' + body.key.id,
           );
 
           if (!send) {
@@ -1799,7 +1838,16 @@ export class ChatwootService {
           }
 
           this.logger.verbose('send data to chatwoot');
-          const send = await this.createMessage(instance, getConversation, content, messageType, false, [], body);
+          const send = await this.createMessage(
+            instance,
+            getConversation,
+            content,
+            messageType,
+            false,
+            [],
+            body,
+            'WAID:' + body.key.id,
+          );
 
           if (!send) {
             this.logger.warn('message not sent');
@@ -1813,7 +1861,16 @@ export class ChatwootService {
           this.logger.verbose('message is not group');
 
           this.logger.verbose('send data to chatwoot');
-          const send = await this.createMessage(instance, getConversation, bodyMessage, messageType, false, [], body);
+          const send = await this.createMessage(
+            instance,
+            getConversation,
+            bodyMessage,
+            messageType,
+            false,
+            [],
+            body,
+            'WAID:' + body.key.id,
+          );
 
           if (!send) {
             this.logger.warn('message not sent');
