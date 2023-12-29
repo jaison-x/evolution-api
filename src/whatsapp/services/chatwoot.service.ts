@@ -203,7 +203,7 @@ export class ChatwootService {
         '123456',
         inboxId,
         false,
-        'EvolutionAPI',
+        'Conexão WhatsApp',
         'https://evolution-api.com/files/evolution-api-favicon.png',
       )) as any);
 
@@ -1122,7 +1122,7 @@ export class ChatwootService {
               };
 
               // when using s3 in chatwoot, we need to wait some time for the file to be available to download.
-              await delay(Math.max(attachment.file_size / 2500, 300));
+              await delay(Math.max(attachment.file_size / 2500, 2000));
               const messageSent = await this.sendAttachment(
                 waInstance,
                 chatId,
