@@ -203,7 +203,7 @@ export class ChatwootService {
         '123456',
         inboxId,
         false,
-        'Conexão WhatsApp',
+        'EvolutionAPI',
         'https://evolution-api.com/files/evolution-api-favicon.png',
       )) as any);
 
@@ -1122,7 +1122,7 @@ export class ChatwootService {
               };
 
               // when using s3 in chatwoot, we need to wait some time for the file to be available to download.
-              await delay(Math.max(attachment.file_size / 2500, 2000));
+              await delay(Math.max(attachment.file_size / 2500, 300));
               const messageSent = await this.sendAttachment(
                 waInstance,
                 chatId,
@@ -1356,9 +1356,9 @@ export class ChatwootService {
       const latitude = result.degreesLatitude;
       const longitude = result.degreesLongitude;
 
-      const formattedLocation = `**Localização:**
-        **Latitude:** ${latitude}
-        **Longitude:** ${longitude}
+      const formattedLocation = `**Location:**
+        **latitude:** ${latitude}
+        **longitude:** ${longitude}
         https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}
         `;
 
@@ -1378,14 +1378,19 @@ export class ChatwootService {
         }
       });
 
-      let formattedContact = `**Contato:**
-        **Nome:** ${contactInfo['FN']}`;
+      let formattedContact = `**Contact:**
+        **name:** ${contactInfo['FN']}`;
 
       let numberCount = 1;
       Object.keys(contactInfo).forEach((key) => {
         if (key.startsWith('item') && key.includes('TEL')) {
           const phoneNumber = contactInfo[key];
-          formattedContact += `\n**Número ${numberCount}:** ${phoneNumber}`;
+          formattedContact += `\n**number ${numberCount}:** ${phoneNumber}`;
+          numberCount++;
+        }
+        if (key.includes('TEL')) {
+          const phoneNumber = contactInfo[key];
+          formattedContact += `\n**number:** ${phoneNumber}`;
           numberCount++;
         }
       });
@@ -1406,14 +1411,19 @@ export class ChatwootService {
           }
         });
 
-        let formattedContact = `**Contato:**
-            **Nome:** ${contact.displayName}`;
+        let formattedContact = `**Contact:**
+            **name:** ${contact.displayName}`;
 
         let numberCount = 1;
         Object.keys(contactInfo).forEach((key) => {
           if (key.startsWith('item') && key.includes('TEL')) {
             const phoneNumber = contactInfo[key];
-            formattedContact += `\n**Número ${numberCount}:** ${phoneNumber}`;
+            formattedContact += `\n**number ${numberCount}:** ${phoneNumber}`;
+            numberCount++;
+          }
+          if (key.includes('TEL')) {
+            const phoneNumber = contactInfo[key];
+            formattedContact += `\n**number:** ${phoneNumber}`;
             numberCount++;
           }
         });
