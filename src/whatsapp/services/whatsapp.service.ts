@@ -447,6 +447,8 @@ export class WAStartupService {
 
     Object.assign(this.localChatwoot, { ...data, sign_delimiter: data.sign_msg ? data.sign_delimiter : null });
 
+    this.clearCacheChatwoot();
+
     this.logger.verbose('Chatwoot set');
   }
 
@@ -489,6 +491,14 @@ export class WAStartupService {
       auto_label: data.auto_label,
       auto_label_config: data.auto_label_config,
     };
+  }
+
+  public clearCacheChatwoot() {
+    this.logger.verbose('Removing cache from chatwoot');
+
+    if (this.localChatwoot.enabled) {
+      this.chatwootService.getCache().deleteAll();
+    }
   }
 
   private async loadSettings() {
