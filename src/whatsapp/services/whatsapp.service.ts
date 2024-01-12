@@ -132,6 +132,7 @@ import { MessageUpQuery } from '../repository/messageUp.repository';
 import { RepositoryBroker } from '../repository/repository.manager';
 import { Events, MessageSubtype, TypeMediaMessage, wa } from '../types/wa.types';
 import { waMonitor } from '../whatsapp.module';
+import { CacheService } from './cache.service';
 import { ChamaaiService } from './chamaai.service';
 import { ChatnodeService } from './chatnode.service';
 import { ChatwootService } from './chatwoot.service';
@@ -145,6 +146,7 @@ export class WAStartupService {
     private readonly eventEmitter: EventEmitter2,
     private readonly repository: RepositoryBroker,
     private readonly cache: RedisCache,
+    private readonly chatwootCache: CacheService,
   ) {
     this.logger.verbose('WAStartupService initialized');
     this.cleanStore();
@@ -173,7 +175,7 @@ export class WAStartupService {
 
   private phoneNumber: string;
 
-  private chatwootService = new ChatwootService(waMonitor, this.configService, this.repository);
+  private chatwootService = new ChatwootService(waMonitor, this.configService, this.repository, this.chatwootCache);
 
   private chatnodeService = new ChatnodeService(waMonitor, this.repository, this.configService, this.chatwootService);
 
@@ -497,7 +499,7 @@ export class WAStartupService {
     this.logger.verbose('Removing cache from chatwoot');
 
     if (this.localChatwoot.enabled) {
-      this.chatwootService.getCache().deleteAll();
+      this.chatwootService.getCache()?.deleteAll(this.instanceName);
     }
   }
 

@@ -1,6 +1,7 @@
 import { configService } from '../config/env.config';
 import { eventEmitter } from '../config/event.config';
 import { Logger } from '../config/logger.config';
+import { CacheEngine } from '../libs/cacheengine';
 import { dbserver } from '../libs/db.connect';
 import { RedisCache } from '../libs/redis.client';
 import { ChamaaiController } from './controllers/chamaai.controller';
@@ -51,6 +52,7 @@ import { TypebotRepository } from './repository/typebot.repository';
 import { WebhookRepository } from './repository/webhook.repository';
 import { WebsocketRepository } from './repository/websocket.repository';
 import { AuthService } from './services/auth.service';
+import { CacheService } from './services/cache.service';
 import { ChamaaiService } from './services/chamaai.service';
 import { ChatnodeService } from './services/chatnode.service';
 import { ChatwootService } from './services/chatwoot.service';
@@ -103,7 +105,9 @@ export const repository = new RepositoryBroker(
 
 export const cache = new RedisCache();
 
-export const waMonitor = new WAMonitoringService(eventEmitter, configService, repository, cache);
+const chatwootCache = new CacheService(new CacheEngine(configService, ChatwootService.name).getEngine());
+
+export const waMonitor = new WAMonitoringService(eventEmitter, configService, repository, cache, chatwootCache);
 
 const authService = new AuthService(configService, waMonitor, repository);
 
@@ -135,7 +139,7 @@ const sqsService = new SqsService(waMonitor);
 
 export const sqsController = new SqsController(sqsService);
 
-const chatwootService = new ChatwootService(waMonitor, configService, repository);
+const chatwootService = new ChatwootService(waMonitor, configService, repository, chatwootCache);
 
 export const chatwootController = new ChatwootController(chatwootService, configService, repository);
 
@@ -162,6 +166,7 @@ export const instanceController = new InstanceController(
   sqsService,
   typebotService,
   cache,
+  chatwootCache,
 );
 export const sendMessageController = new SendMessageController(waMonitor);
 export const chatController = new ChatController(waMonitor);
