@@ -2131,6 +2131,13 @@ export class WAStartupService {
           this.logger.verbose('group ignored');
           return;
         }
+
+        if (status[update.status] === 'READ' && key.fromMe) {
+          if (this.localChatwoot.enabled) {
+            this.chatwootService.eventWhatsapp('messages.read', { instanceName: this.instance.name }, { key: key });
+          }
+        }
+
         if (key.remoteJid !== 'status@broadcast' && !key?.remoteJid?.match(/(:\d+)/)) {
           this.logger.verbose('Message update is valid');
 
