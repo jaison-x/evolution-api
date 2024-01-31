@@ -81,6 +81,7 @@ export declare namespace wa {
     always_online?: boolean;
     read_messages?: boolean;
     read_status?: boolean;
+    sync_full_history?: boolean;
   };
 
   export type LocalChatnode = {

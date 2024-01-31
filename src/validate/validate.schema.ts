@@ -927,9 +927,10 @@ export const settingsSchema: JSONSchema7 = {
     always_online: { type: 'boolean', enum: [true, false] },
     read_messages: { type: 'boolean', enum: [true, false] },
     read_status: { type: 'boolean', enum: [true, false] },
+    sync_full_history: { type: 'boolean', enum: [true, false] },
   },
-  required: ['reject_call', 'groups_ignore', 'always_online', 'read_messages', 'read_status'],
-  ...isNotEmpty('reject_call', 'groups_ignore', 'always_online', 'read_messages', 'read_status'),
+  required: ['reject_call', 'groups_ignore', 'always_online', 'read_messages', 'read_status', 'sync_full_history'],
+  ...isNotEmpty('reject_call', 'groups_ignore', 'always_online', 'read_messages', 'read_status', 'sync_full_history'),
 };
 
 export const chatnodeSchema: JSONSchema7 = {

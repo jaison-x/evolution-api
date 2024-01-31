@@ -8,13 +8,14 @@ import Jimp from 'jimp';
 import mimeTypes from 'mime-types';
 import path from 'path';
 
-import { ConfigService, HttpServer } from '../../config/env.config';
+import { Chatwoot, ConfigService, HttpServer } from '../../config/env.config';
 import { Logger } from '../../config/logger.config';
+import { chatwootImport } from '../../utils/chatwoot-import-helper';
 import { ICache } from '../abstract/abstract.cache';
 import { ChatwootDto } from '../dto/chatwoot.dto';
 import { InstanceDto } from '../dto/instance.dto';
 import { Options, Quoted, SendAudioDto, SendMediaDto, SendTextDto } from '../dto/sendMessage.dto';
-import { ChatwootRaw, MessageRaw } from '../models';
+import { ChatwootRaw, ContactRaw, MessageRaw } from '../models';
 import { RepositoryBroker } from '../repository/repository.manager';
 import { Events } from '../types/wa.types';
 import { WAMonitoringService } from './monitor.service';
@@ -1531,7 +1532,7 @@ export class ChatwootService {
     return result;
   }
 
-  private getConversationMessage(msg: any) {
+  public getConversationMessage(msg: any) {
     this.logger.verbose('get conversation message');
 
     const types = this.getTypeMessage(msg);
@@ -2026,6 +2027,7 @@ export class ChatwootService {
             this.logger.verbose('send message to chatwoot');
             await this.createBotMessage(instance, msgConnection, 'incoming');
             this.waMonitor.waInstances[instance.instanceName].qrCode.count = 0;
+            chatwootImport.clearAll(instance);
           }
         }
       }
@@ -2074,5 +2076,114 @@ export class ChatwootService {
 
   public getNumberFromRemoteJid(remoteJid: string) {
     return remoteJid.replace(/:\d+/, '').split('@')[0];
+  }
+
+  public startImportHistoryMessages(instance: InstanceDto) {
+    if (!this.isImportHistoryAvailable()) {
+      return;
+    }
+
+    this.createBotMessage(instance, `💬 Starting to import messages. Please wait...`, 'incoming');
+  }
+
+  public isImportHistoryAvailable() {
+    const uri = this.configService.get<Chatwoot>('CHATWOOT').IMPORT.DATABASE.CONNECTION.URI;
+
+    return uri && uri !== 'postgres://user:password@hostname:port/dbname';
+  }
+
+  /* We can't proccess messages exactly in batch because Chatwoot use message id to order
+     messages in frontend and we are receiving the messages mixed between the batches.
+     Because this, we need to put all batches together and order after */
+  public addHistoryMessages(instance: InstanceDto, messagesRaw: MessageRaw[]) {
+    if (!this.isImportHistoryAvailable()) {
+      return;
+    }
+
+    chatwootImport.addHistoryMessages(instance, messagesRaw);
+  }
+
+  public addHistoryContacts(instance: InstanceDto, contactsRaw: ContactRaw[]) {
+    if (!this.isImportHistoryAvailable()) {
+      return;
+    }
+
+    return chatwootImport.addHistoryContacts(instance, contactsRaw);
+  }
+
+  public async importHistoryMessages(instance: InstanceDto) {
+    if (!this.isImportHistoryAvailable()) {
+      return;
+    }
+
+    this.createBotMessage(instance, '💬 Importing messages. More one moment...', 'incoming');
+
+    const totalMessagesImported = await chatwootImport.importHistoryMessages(
+      instance,
+      this,
+      await this.getInbox(instance),
+      this.provider,
+    );
+    this.updateContactAvatarInRecentConversations(instance);
+
+    const msg = Number.isInteger(totalMessagesImported)
+      ? `${totalMessagesImported} messages imported. Refresh page to see the new messages`
+      : `Something went wrong in importing messages`;
+
+    this.createBotMessage(instance, `💬 ${msg}`, 'incoming');
+
+    return totalMessagesImported;
+  }
+
+  public async updateContactAvatarInRecentConversations(instance: InstanceDto, limitContacts = 100) {
+    try {
+      if (!this.isImportHistoryAvailable()) {
+        return;
+      }
+
+      const client = await this.clientCw(instance);
+      if (!client) {
+        this.logger.warn('client not found');
+        return null;
+      }
+
+      const inbox = await this.getInbox(instance);
+      if (!inbox) {
+        this.logger.warn('inbox not found');
+        return null;
+      }
+
+      const recentContacts = await chatwootImport.getContactsOrderByRecentConversations(
+        inbox,
+        this.provider,
+        limitContacts,
+      );
+
+      const contactsWithProfilePicture = (
+        await this.repository.contact.find({
+          where: {
+            owner: instance.instanceName,
+            id: {
+              $in: recentContacts.map((contact) => contact.identifier),
+            },
+            profilePictureUrl: { $ne: null },
+          },
+        } as any)
+      ).reduce((acc: Map<string, ContactRaw>, contact: ContactRaw) => acc.set(contact.id, contact), new Map());
+
+      recentContacts.forEach(async (contact) => {
+        if (contactsWithProfilePicture.has(contact.identifier)) {
+          client.contacts.update({
+            accountId: this.provider.account_id,
+            id: contact.id,
+            data: {
+              avatar_url: contactsWithProfilePicture.get(contact.identifier).profilePictureUrl || null,
+            },
+          });
+        }
+      });
+    } catch (error) {
+      this.logger.error(`Error on update avatar in recent conversations: ${error.toString()}`);
+    }
   }
 }

@@ -2011,6 +2011,9 @@ paths:
                 read_status:
                   type: boolean
                   description: "Indicates whether to mark status messages as read."
+                sync_full_history:
+                  type: boolean
+                  description: "Indicates whether to request a full history messages sync on connect."
       parameters:
         - name: instanceName
           in: path

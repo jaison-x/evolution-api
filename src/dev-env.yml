@@ -153,6 +153,14 @@ TYPEBOT:
   API_VERSION: 'old' # old | latest
   KEEP_OPEN: false
 
+CHATWOOT:
+  IMPORT:
+    # This db connection is used to import messages from whatsapp to chatwoot database
+    DATABASE:
+      CONNECTION:
+        URI: "postgres://user:password@hostname:port/dbname"
+    PLACEHOLDER_MEDIA_MESSAGE: true
+
 # Cache to optimize application performance
 CACHE:
   REDIS:

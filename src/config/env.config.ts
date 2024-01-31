@@ -151,6 +151,18 @@ export type Webhook = { GLOBAL?: GlobalWebhook; EVENTS: EventsWebhook };
 export type ConfigSessionPhone = { CLIENT: string; NAME: string };
 export type QrCode = { LIMIT: number; COLOR: string };
 export type Typebot = { API_VERSION: string; KEEP_OPEN: boolean };
+
+export type Chatwoot = {
+  IMPORT: {
+    DATABASE: {
+      CONNECTION: {
+        URI: string;
+      };
+    };
+    PLACEHOLDER_MEDIA_MESSAGE: boolean;
+  };
+};
+
 export type CacheConf = { REDIS: CacheConfRedis; LOCAL: CacheConfLocal };
 export type Production = boolean;
 
@@ -171,6 +183,7 @@ export interface Env {
   CONFIG_SESSION_PHONE: ConfigSessionPhone;
   QRCODE: QrCode;
   TYPEBOT: Typebot;
+  CHATWOOT: Chatwoot;
   CACHE: CacheConf;
   AUTHENTICATION: Auth;
   PRODUCTION?: Production;
@@ -334,6 +347,16 @@ export class ConfigService {
       TYPEBOT: {
         API_VERSION: process.env?.TYPEBOT_API_VERSION || 'old',
         KEEP_OPEN: process.env.TYPEBOT_KEEP_OPEN === 'true',
+      },
+      CHATWOOT: {
+        IMPORT: {
+          DATABASE: {
+            CONNECTION: {
+              URI: process.env.CHATWOOT_DATABASE_CONNECTION_URI || '',
+            },
+          },
+          PLACEHOLDER_MEDIA_MESSAGE: process.env?.CHATWOOT_IMPORT_PLACEHOLDER_MEDIA_MESSAGE === 'true',
+        },
       },
       CACHE: {
         REDIS: {
