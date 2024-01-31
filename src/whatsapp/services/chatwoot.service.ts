@@ -1,4 +1,4 @@
-import ChatwootClient, { ChatwootAPIConfig, contact, conversation, inbox } from '@figuro/chatwoot-sdk';
+import ChatwootClient, { ChatwootAPIConfig, contact, conversation, generic_id, inbox } from '@figuro/chatwoot-sdk';
 import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request';
 import { delay } from '@whiskeysockets/baileys';
 import axios from 'axios';
@@ -700,6 +700,48 @@ export class ChatwootService {
     return message;
   }
 
+  public async getOpenConversationByContact(
+    instance: InstanceDto,
+    inbox: inbox,
+    contact: generic_id & contact,
+  ): Promise<conversation> {
+    this.logger.verbose('find conversation in chatwoot');
+
+    const client = await this.clientCw(instance);
+
+    if (!client) {
+      this.logger.warn('client not found');
+      return null;
+    }
+
+    return (
+      (
+        (await client.conversations.filter({
+          accountId: this.provider.account_id,
+          payload: [
+            {
+              attribute_key: 'inbox_id',
+              filter_operator: 'equal_to',
+              values: [inbox.id.toString()],
+              query_operator: 'AND',
+            },
+            {
+              attribute_key: 'contact_id',
+              filter_operator: 'equal_to',
+              values: [contact.id.toString()],
+              query_operator: 'AND',
+            },
+            {
+              attribute_key: 'status',
+              filter_operator: 'equal_to',
+              values: ['open'],
+            },
+          ],
+        })) as { payload: conversation[] }
+      ).payload[0] || undefined
+    );
+  }
+
   public async createBotMessage(
     instance: InstanceDto,
     content: string,
@@ -735,21 +777,7 @@ export class ChatwootService {
       return null;
     }
 
-    this.logger.verbose('find conversation in chatwoot');
-    const findConversation = await client.conversations.list({
-      accountId: this.provider.account_id,
-      inboxId: filterInbox.id,
-    });
-
-    if (!findConversation) {
-      this.logger.warn('conversation not found');
-      return null;
-    }
-
-    this.logger.verbose('find conversation by contact id');
-    const conversation = findConversation.data.payload.find(
-      (conversation) => conversation?.meta?.sender?.id === contact.id && conversation.status === 'open',
-    );
+    const conversation = await this.getOpenConversationByContact(instance, filterInbox, contact);
 
     if (!conversation) {
       this.logger.warn('conversation not found');
@@ -872,21 +900,7 @@ export class ChatwootService {
       return null;
     }
 
-    this.logger.verbose('find conversation in chatwoot');
-    const findConversation = await client.conversations.list({
-      accountId: this.provider.account_id,
-      inboxId: filterInbox.id,
-    });
-
-    if (!findConversation) {
-      this.logger.warn('conversation not found');
-      return null;
-    }
-
-    this.logger.verbose('find conversation by contact id');
-    const conversation = findConversation.data.payload.find(
-      (conversation) => conversation?.meta?.sender?.id === contact.id && conversation.status === 'open',
-    );
+    const conversation = await this.getOpenConversationByContact(instance, filterInbox, contact);
 
     if (!conversation) {
       this.logger.warn('conversation not found');
