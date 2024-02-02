@@ -16,6 +16,9 @@ class Postgres {
     } else {
       this.pool = new Pool({
         connectionString,
+        ssl: {
+          rejectUnauthorized: false,
+        },
       });
 
       this.pool.on('error', () => {
