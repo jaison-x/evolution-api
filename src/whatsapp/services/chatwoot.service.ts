@@ -715,29 +715,24 @@ export class ChatwootService {
       return null;
     }
 
+    const payload = [
+      ['inbox_id', inbox.id.toString()],
+      ['contact_id', contact.id.toString()],
+      ['status', 'open'],
+    ];
+
     return (
       (
         (await client.conversations.filter({
           accountId: this.provider.account_id,
-          payload: [
-            {
-              attribute_key: 'inbox_id',
+          payload: payload.map((item, i, payload) => {
+            return {
+              attribute_key: item[0],
               filter_operator: 'equal_to',
-              values: [inbox.id.toString()],
-              query_operator: 'AND',
-            },
-            {
-              attribute_key: 'contact_id',
-              filter_operator: 'equal_to',
-              values: [contact.id.toString()],
-              query_operator: 'AND',
-            },
-            {
-              attribute_key: 'status',
-              filter_operator: 'equal_to',
-              values: ['open'],
-            },
-          ],
+              values: [item[1]],
+              query_operator: i < payload.length - 1 ? 'AND' : null,
+            };
+          }),
         })) as { payload: conversation[] }
       ).payload[0] || undefined
     );
