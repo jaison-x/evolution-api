@@ -1132,6 +1132,12 @@ export class ChatwootService {
           }
         }
 
+        if (command === 'clearcache') {
+          this.logger.verbose('command clearcache found');
+          waInstance.clearCacheChatwoot();
+          await this.createBotMessage(instance, `✅ ${body.inbox.name} instance cache cleared.`, 'incoming');
+        }
+
         if (command === 'status') {
           this.logger.verbose('command status found');
 
