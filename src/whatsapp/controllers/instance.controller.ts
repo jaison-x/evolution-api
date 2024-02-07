@@ -474,7 +474,7 @@ export class InstanceController {
           import_contacts: chatwoot_import_contacts ?? true,
           import_messages: chatwoot_import_messages ?? true,
           days_limit_import_messages: chatwoot_days_limit_import_messages ?? 60,
-          auto_label: chatwoot_auto_label || false,
+          auto_label: chatwoot_auto_label ?? true,
           auto_label_config: chatwoot_auto_label_config || [],
           auto_create: true,
         });
