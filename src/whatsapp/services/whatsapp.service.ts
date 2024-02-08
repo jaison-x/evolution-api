@@ -414,13 +414,13 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot conversation pending: ${this.localChatwoot.conversation_pending}`);
 
     this.localChatwoot.import_contacts = data?.import_contacts;
-    this.logger.verbose(`Chatwoot import_contacts: ${this.localChatwoot.import_contacts}`);
+    this.logger.verbose(`Chatwoot import contacts: ${this.localChatwoot.import_contacts}`);
 
     this.localChatwoot.import_messages = data?.import_messages;
-    this.logger.verbose(`Chatwoot import_messages: ${this.localChatwoot.import_messages}`);
+    this.logger.verbose(`Chatwoot import messages: ${this.localChatwoot.import_messages}`);
 
     this.localChatwoot.days_limit_import_messages = data?.days_limit_import_messages;
-    this.logger.verbose(`Chatwoot days_limit_import_messages: ${this.localChatwoot.days_limit_import_messages}`);
+    this.logger.verbose(`Chatwoot days limit import messages: ${this.localChatwoot.days_limit_import_messages}`);
 
     this.localChatwoot.auto_label = data?.auto_label;
     this.logger.verbose(`Chatwoot auto_label: ${this.localChatwoot.auto_label}`);
@@ -444,7 +444,7 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot conversation pending: ${data.conversation_pending}`);
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
     this.logger.verbose(`Chatwoot import messages: ${data.import_messages}`);
-    this.logger.verbose(`Chatwoot days limit to import messages: ${data.days_limit_import_messages}`);
+    this.logger.verbose(`Chatwoot days limit import messages: ${data.days_limit_import_messages}`);
     this.logger.verbose(`Chatwoot auto_label: ${data.auto_label}`);
     this.logger.verbose(`Chatwoot auto_label_config : ${data.auto_label_config}`);
 
@@ -1521,6 +1521,9 @@ export class WAStartupService {
         getMessage: async (key) => (await this.getMessage(key)) as Promise<proto.IMessage>,
         generateHighQualityLinkPreview: true,
         syncFullHistory: this.localSettings.sync_full_history,
+        shouldSyncHistoryMessage: (msg: proto.Message.IHistorySyncNotification) => {
+          return this.historySyncNotification(msg);
+        },
         userDevicesCache: this.userDevicesCache,
         transactionOpts: { maxCommitRetries: 10, delayBetweenTriesMs: 10 },
         patchMessageBeforeSending: (message) => {
@@ -1608,6 +1611,9 @@ export class WAStartupService {
         getMessage: async (key) => (await this.getMessage(key)) as Promise<proto.IMessage>,
         generateHighQualityLinkPreview: true,
         syncFullHistory: this.localSettings.sync_full_history,
+        shouldSyncHistoryMessage: (msg: proto.Message.IHistorySyncNotification) => {
+          return this.historySyncNotification(msg);
+        },
         userDevicesCache: this.userDevicesCache,
         transactionOpts: { maxCommitRetries: 10, delayBetweenTriesMs: 10 },
         patchMessageBeforeSending: (message) => {
@@ -1904,27 +1910,7 @@ export class WAStartupService {
     ) => {
       try {
         this.logger.verbose('Event received: messages.upsert');
-        const instance: InstanceDto = { instanceName: this.instance.name };
-
         for (const received of messages) {
-          if (
-            this.localChatwoot.enabled &&
-            this.localChatwoot.import_messages &&
-            this.isMessageFromHistorySyncNotification(received)
-          ) {
-            const historySyncNot = received.message.protocolMessage.historySyncNotification;
-
-            if (historySyncNot.chunkOrder === 1) {
-              this.chatwootService.startImportHistoryMessages(instance);
-            }
-
-            if (historySyncNot.progress === 100) {
-              setTimeout(() => {
-                this.chatwootService.importHistoryMessages(instance);
-              }, 10000);
-            }
-          }
-
           if (
             (type !== 'notify' && type !== 'append') ||
             received.message?.protocolMessage ||
@@ -2399,12 +2385,32 @@ export class WAStartupService {
     }
   }
 
-  private isMessageFromHistorySyncNotification(msg: proto.IWebMessageInfo) {
-    const historySyncNot = msg?.message?.protocolMessage?.historySyncNotification;
+  private historySyncNotification(msg: proto.Message.IHistorySyncNotification) {
+    const instance: InstanceDto = { instanceName: this.instance.name };
 
+    if (
+      this.localChatwoot.enabled &&
+      this.localChatwoot.import_messages &&
+      this.isSyncNotificationFromUsedSyncType(msg)
+    ) {
+      if (msg.chunkOrder === 1) {
+        this.chatwootService.startImportHistoryMessages(instance);
+      }
+
+      if (msg.progress === 100) {
+        setTimeout(() => {
+          this.chatwootService.importHistoryMessages(instance);
+        }, 10000);
+      }
+    }
+
+    return true;
+  }
+
+  private isSyncNotificationFromUsedSyncType(msg: proto.Message.IHistorySyncNotification) {
     return (
-      (this.localSettings.sync_full_history && historySyncNot?.syncType === 2) ||
-      (!this.localSettings.sync_full_history && historySyncNot?.syncType === 3)
+      (this.localSettings.sync_full_history && msg?.syncType === 2) ||
+      (!this.localSettings.sync_full_history && msg?.syncType === 3)
     );
   }
 
