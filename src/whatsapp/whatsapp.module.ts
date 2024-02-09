@@ -10,6 +10,7 @@ import { ChatnodeController } from './controllers/chatnode.controller';
 import { ChatwootController } from './controllers/chatwoot.controller';
 import { GroupController } from './controllers/group.controller';
 import { InstanceController } from './controllers/instance.controller';
+import { LabelController } from './controllers/label.controller';
 import { ProxyController } from './controllers/proxy.controller';
 import { RabbitmqController } from './controllers/rabbitmq.controller';
 import { SendMessageController } from './controllers/sendMessage.controller';
@@ -35,12 +36,14 @@ import {
   WebhookModel,
   WebsocketModel,
 } from './models';
+import { LabelModel } from './models/label.model';
 import { AuthRepository } from './repository/auth.repository';
 import { ChamaaiRepository } from './repository/chamaai.repository';
 import { ChatRepository } from './repository/chat.repository';
 import { ChatnodeRepository } from './repository/chatnode.repository';
 import { ChatwootRepository } from './repository/chatwoot.repository';
 import { ContactRepository } from './repository/contact.repository';
+import { LabelRepository } from './repository/label.repository';
 import { MessageRepository } from './repository/message.repository';
 import { MessageUpRepository } from './repository/messageUp.repository';
 import { ProxyRepository } from './repository/proxy.repository';
@@ -82,6 +85,7 @@ const chatwootRepository = new ChatwootRepository(ChatwootModel, configService);
 const settingsRepository = new SettingsRepository(SettingsModel, configService);
 const authRepository = new AuthRepository(AuthModel, configService);
 const chatnodeRepository = new ChatnodeRepository(ChatnodeModel, configService);
+const labelRepository = new LabelRepository(LabelModel, configService);
 
 export const repository = new RepositoryBroker(
   messageRepository,
@@ -98,6 +102,7 @@ export const repository = new RepositoryBroker(
   proxyRepository,
   chamaaiRepository,
   authRepository,
+  labelRepository,
   configService,
   chatnodeRepository,
   dbserver?.getClient(),
@@ -125,7 +130,7 @@ export const websocketController = new WebsocketController(websocketService);
 
 const proxyService = new ProxyService(waMonitor);
 
-export const proxyController = new ProxyController(proxyService);
+export const proxyController = new ProxyController(proxyService, waMonitor);
 
 const chamaaiService = new ChamaaiService(waMonitor, configService);
 
@@ -162,7 +167,6 @@ export const instanceController = new InstanceController(
   settingsService,
   websocketService,
   rabbitmqService,
-  proxyService,
   sqsService,
   typebotService,
   cache,
@@ -171,5 +175,6 @@ export const instanceController = new InstanceController(
 export const sendMessageController = new SendMessageController(waMonitor);
 export const chatController = new ChatController(waMonitor);
 export const groupController = new GroupController(waMonitor);
+export const labelController = new LabelController(waMonitor);
 
 logger.info('Module - ON');

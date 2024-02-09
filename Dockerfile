@@ -1,6 +1,6 @@
 FROM node:20.7.0-alpine AS builder
 
-LABEL version="1.6.1" description="Api to control whatsapp features through http requests." 
+LABEL version="1.6.2" description="Api to control whatsapp features through http requests." 
 LABEL maintainer="Davidson Gomes" git="https://github.com/DavidsonGomes"
 LABEL contact="contato@agenciadgcode.com"
 
@@ -98,6 +98,8 @@ ENV WEBHOOK_EVENTS_GROUPS_UPSERT=true
 ENV WEBHOOK_EVENTS_GROUPS_UPDATE=true
 ENV WEBHOOK_EVENTS_GROUP_PARTICIPANTS_UPDATE=true
 ENV WEBHOOK_EVENTS_CONNECTION_UPDATE=true
+ENV WEBHOOK_EVENTS_LABELS_EDIT=true
+ENV WEBHOOK_EVENTS_LABELS_ASSOCIATION=true
 ENV WEBHOOK_EVENTS_CALL=true
 
 ENV WEBHOOK_EVENTS_NEW_JWT_TOKEN=false

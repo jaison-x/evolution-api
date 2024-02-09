@@ -34,6 +34,7 @@ export type SaveData = {
   MESSAGE_UPDATE: boolean;
   CONTACTS: boolean;
   CHATS: boolean;
+  LABELS: boolean;
 };
 
 export type StoreConf = {
@@ -41,6 +42,7 @@ export type StoreConf = {
   MESSAGE_UP: boolean;
   CONTACTS: boolean;
   CHATS: boolean;
+  LABELS: boolean;
 };
 
 export type CleanStoreConf = {
@@ -107,6 +109,8 @@ export type EventsWebhook = {
   CHATS_DELETE: boolean;
   CHATS_UPSERT: boolean;
   CONNECTION_UPDATE: boolean;
+  LABELS_EDIT: boolean;
+  LABELS_ASSOCIATION: boolean;
   GROUPS_UPSERT: boolean;
   GROUP_UPDATE: boolean;
   GROUP_PARTICIPANTS_UPDATE: boolean;
@@ -131,6 +135,8 @@ export type Auth = {
 
 export type DelInstance = number | boolean;
 
+export type Language = string | 'en';
+
 export type GlobalWebhook = {
   URL: string;
   ENABLED: boolean;
@@ -151,8 +157,8 @@ export type Webhook = { GLOBAL?: GlobalWebhook; EVENTS: EventsWebhook };
 export type ConfigSessionPhone = { CLIENT: string; NAME: string };
 export type QrCode = { LIMIT: number; COLOR: string };
 export type Typebot = { API_VERSION: string; KEEP_OPEN: boolean };
-
 export type Chatwoot = {
+  MESSAGE_DELETE: boolean;
   IMPORT: {
     DATABASE: {
       CONNECTION: {
@@ -179,6 +185,7 @@ export interface Env {
   WEBSOCKET: Websocket;
   LOG: Log;
   DEL_INSTANCE: DelInstance;
+  LANGUAGE: Language;
   WEBHOOK: Webhook;
   CONFIG_SESSION_PHONE: ConfigSessionPhone;
   QRCODE: QrCode;
@@ -239,6 +246,7 @@ export class ConfigService {
         MESSAGE_UP: process.env?.STORE_MESSAGE_UP === 'true',
         CONTACTS: process.env?.STORE_CONTACTS === 'true',
         CHATS: process.env?.STORE_CHATS === 'true',
+        LABELS: process.env?.STORE_LABELS === 'true',
       },
       CLEAN_STORE: {
         CLEANING_INTERVAL: Number.isInteger(process.env?.CLEAN_STORE_CLEANING_TERMINAL)
@@ -261,6 +269,7 @@ export class ConfigService {
           MESSAGE_UPDATE: process.env?.DATABASE_SAVE_MESSAGE_UPDATE === 'true',
           CONTACTS: process.env?.DATABASE_SAVE_DATA_CONTACTS === 'true',
           CHATS: process.env?.DATABASE_SAVE_DATA_CHATS === 'true',
+          LABELS: process.env?.DATABASE_SAVE_DATA_LABELS === 'true',
         },
       },
       REDIS: {
@@ -299,6 +308,7 @@ export class ConfigService {
       DEL_INSTANCE: isBooleanString(process.env?.DEL_INSTANCE)
         ? process.env.DEL_INSTANCE === 'true'
         : Number.parseInt(process.env.DEL_INSTANCE) || false,
+      LANGUAGE: process.env?.LANGUAGE || 'en',
       WEBHOOK: {
         GLOBAL: {
           URL: process.env?.WEBHOOK_GLOBAL_URL || '',
@@ -324,6 +334,8 @@ export class ConfigService {
           CHATS_UPSERT: process.env?.WEBHOOK_EVENTS_CHATS_UPSERT === 'true',
           CHATS_DELETE: process.env?.WEBHOOK_EVENTS_CHATS_DELETE === 'true',
           CONNECTION_UPDATE: process.env?.WEBHOOK_EVENTS_CONNECTION_UPDATE === 'true',
+          LABELS_EDIT: process.env?.WEBHOOK_EVENTS_LABELS_EDIT === 'true',
+          LABELS_ASSOCIATION: process.env?.WEBHOOK_EVENTS_LABELS_ASSOCIATION === 'true',
           GROUPS_UPSERT: process.env?.WEBHOOK_EVENTS_GROUPS_UPSERT === 'true',
           GROUP_UPDATE: process.env?.WEBHOOK_EVENTS_GROUPS_UPDATE === 'true',
           GROUP_PARTICIPANTS_UPDATE: process.env?.WEBHOOK_EVENTS_GROUP_PARTICIPANTS_UPDATE === 'true',
@@ -349,6 +361,7 @@ export class ConfigService {
         KEEP_OPEN: process.env.TYPEBOT_KEEP_OPEN === 'true',
       },
       CHATWOOT: {
+        MESSAGE_DELETE: process.env.CHATWOOT_MESSAGE_DELETE === 'false',
         IMPORT: {
           DATABASE: {
             CONNECTION: {

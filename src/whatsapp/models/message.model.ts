@@ -31,6 +31,7 @@ export class MessageRaw {
   source_reply_id?: string;
   chatwoot?: ChatwootMessage;
   isBot?: boolean;
+  contextInfo?: any;
 }
 
 type MessageRawBoolean<T> = {

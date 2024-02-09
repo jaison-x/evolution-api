@@ -10,6 +10,7 @@ import { ChatRepository } from './chat.repository';
 import { ChatnodeRepository } from './chatnode.repository';
 import { ChatwootRepository } from './chatwoot.repository';
 import { ContactRepository } from './contact.repository';
+import { LabelRepository } from './label.repository';
 import { MessageRepository } from './message.repository';
 import { MessageUpRepository } from './messageUp.repository';
 import { ProxyRepository } from './proxy.repository';
@@ -35,6 +36,7 @@ export class RepositoryBroker {
     public readonly proxy: ProxyRepository,
     public readonly chamaai: ChamaaiRepository,
     public readonly auth: AuthRepository,
+    public readonly labels: LabelRepository,
     private configService: ConfigService,
     public readonly chatnode: ChatnodeRepository,
     dbServer?: MongoClient,
