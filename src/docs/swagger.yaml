@@ -2251,6 +2251,9 @@ paths:
                 days_limit_import_messages:
                   type: number
                   description: "Indicates number of days to limit messages imported to Chatwoot."
+                sync_label:
+                  type: boolean
+                  description: "Indicates whether to sync labels from Whatsapp to Chatwoot."
                 auto_label:
                   type: boolean
                   description: "Indicates whether to add labels to the conversation in Chatwoot. Labels are added by param auto_label_config."

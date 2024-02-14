@@ -428,6 +428,9 @@ export class WAStartupService {
     this.localChatwoot.days_limit_import_messages = data?.days_limit_import_messages;
     this.logger.verbose(`Chatwoot days limit import messages: ${this.localChatwoot.days_limit_import_messages}`);
 
+    this.localChatwoot.sync_label = data?.sync_label;
+    this.logger.verbose(`Chatwoot sync_label: ${this.localChatwoot.sync_label}`);
+
     this.localChatwoot.auto_label = data?.auto_label;
     this.logger.verbose(`Chatwoot auto_label: ${this.localChatwoot.auto_label}`);
 
@@ -451,6 +454,7 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
     this.logger.verbose(`Chatwoot import messages: ${data.import_messages}`);
     this.logger.verbose(`Chatwoot days limit import messages: ${data.days_limit_import_messages}`);
+    this.logger.verbose(`Chatwoot sync_label: ${data.sync_label}`);
     this.logger.verbose(`Chatwoot auto_label: ${data.auto_label}`);
     this.logger.verbose(`Chatwoot auto_label_config : ${data.auto_label_config}`);
 
@@ -481,6 +485,7 @@ export class WAStartupService {
     this.logger.verbose(`Chatwoot import contacts: ${data.import_contacts}`);
     this.logger.verbose(`Chatwoot import messages: ${data.import_messages}`);
     this.logger.verbose(`Chatwoot days limit import messages: ${data.days_limit_import_messages}`);
+    this.logger.verbose(`Chatwoot sync_label: ${data.sync_label}`);
     this.logger.verbose(`Chatwoot auto_label: ${data.auto_label}`);
     this.logger.verbose(`Chatwoot auto_label_config: ${data.auto_label_config}`);
 
@@ -497,6 +502,7 @@ export class WAStartupService {
       import_contacts: data.import_contacts,
       import_messages: data.import_messages,
       days_limit_import_messages: data.days_limit_import_messages,
+      sync_label: data.sync_label,
       auto_label: data.auto_label,
       auto_label_config: data.auto_label_config,
     };
@@ -2252,12 +2258,17 @@ export class WAStartupService {
     [Events.LABELS_EDIT]: async (label: Label, database: Database) => {
       this.logger.verbose('Event received: labels.edit');
       this.logger.verbose('Finding labels in database');
+
+      if (this.localChatwoot.enabled) {
+        this.chatwootService.eventWhatsapp(Events.LABELS_EDIT, { instanceName: this.instance.name }, label);
+      }
+
       const labelsRepository = await this.repository.labels.find({
         where: { owner: this.instance.name },
       });
 
       const savedLabel = labelsRepository.find((l) => l.id === label.id);
-      if (label.deleted && savedLabel) {
+      if (label.deleted) {
         this.logger.verbose('Sending data to webhook in event LABELS_EDIT');
         await this.repository.labels.delete({
           where: { owner: this.instance.name, id: label.id },
@@ -2320,6 +2331,10 @@ export class WAStartupService {
         chatId: data.association.chatId,
         labelId: data.association.labelId,
       });
+
+      if (this.localChatwoot.enabled) {
+        this.chatwootService.eventWhatsapp(Events.LABELS_ASSOCIATION, { instanceName: this.instance.name }, data);
+      }
     },
   };
 

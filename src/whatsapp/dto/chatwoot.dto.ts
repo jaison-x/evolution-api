@@ -12,6 +12,7 @@ export class ChatwootDto {
   import_contacts?: boolean;
   import_messages?: boolean;
   days_limit_import_messages?: number;
+  sync_label?: boolean;
   auto_label?: boolean;
   auto_label_config?: object[];
   auto_create?: boolean;

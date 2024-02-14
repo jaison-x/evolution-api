@@ -54,6 +54,7 @@ export class ChatwootController {
       data.import_contacts = false;
       data.import_messages = false;
       data.days_limit_import_messages = 0;
+      data.sync_label = false;
       data.auto_label = false;
       data.auto_label_config = [];
       data.auto_create = false;

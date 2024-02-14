@@ -9,6 +9,7 @@ export class LabelRaw {
   name: string;
   color: number;
   predefinedId?: string;
+  chatwootId?: number;
 }
 
 type LabelRawBoolean<T> = {
@@ -23,6 +24,7 @@ const labelSchema = new Schema<LabelRaw>({
   name: { type: String, required: true, minlength: 1 },
   color: { type: Number, required: true, min: 0, max: 19 },
   predefinedId: { type: String },
+  chatwootId: { type: Number },
 });
 
 export const LabelModel = dbserver?.model(LabelRaw.name, labelSchema, 'labels');

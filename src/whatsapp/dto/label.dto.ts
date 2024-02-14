@@ -3,6 +3,7 @@ export class LabelDto {
   name: string;
   color: number;
   predefinedId?: string;
+  chatwootId?: number;
 }
 
 export class HandleLabelDto {

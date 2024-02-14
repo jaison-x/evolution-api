@@ -11,6 +11,7 @@ import path from 'path';
 import { Chatwoot, ConfigService, HttpServer } from '../../config/env.config';
 import { Logger } from '../../config/logger.config';
 import { chatwootImport } from '../../utils/chatwoot-import-helper';
+import { ChatwootLabel } from '../../utils/chatwoot-label-helper';
 import i18next from '../../utils/i18n';
 import { ICache } from '../abstract/abstract.cache';
 import { ChatwootDto } from '../dto/chatwoot.dto';
@@ -25,13 +26,16 @@ export class ChatwootService {
   private readonly logger = new Logger(ChatwootService.name);
 
   private provider: any;
+  private chatwootLabel: ChatwootLabel;
 
   constructor(
     private readonly waMonitor: WAMonitoringService,
     private readonly configService: ConfigService,
     private readonly repository: RepositoryBroker,
     private readonly cache: ICache,
-  ) {}
+  ) {
+    this.chatwootLabel = new ChatwootLabel(waMonitor, repository);
+  }
 
   private async getProvider(instance: InstanceDto) {
     const cacheKey = `${instance.instanceName}:getProvider`;
@@ -1680,81 +1684,18 @@ export class ChatwootService {
     return messageContent;
   }
 
-  private async getLabelsToAdd(message: string): Promise<string[]> {
-    this.logger.verbose('getting regexes and testing to get necessary labels');
-    const labels: string[] = [];
-
-    let autoLabelConfig = this.provider?.auto_label_config || [];
-    if (autoLabelConfig.length === 0 && this.provider?.auto_label) {
-      const providerFallback: any = await this.getProvider({ instanceName: 'Lequia' });
-      if (providerFallback) {
-        autoLabelConfig = providerFallback.auto_label_config;
-      }
-    }
-
-    if (autoLabelConfig) {
-      autoLabelConfig.forEach((config) => {
-        if (config.regex.some((filter) => new RegExp(filter, 'gi').test(message))) {
-          labels.push(config.label);
-        }
-      });
-    }
-
-    return labels;
-  }
-
-  private async processAutoLabel(instance: InstanceDto, conversation: number, message: string): Promise<string[]> {
-    const autoLabel = this.provider?.auto_label || false;
-
-    this.logger.verbose(`auto label is: ${autoLabel}`);
-    if (!autoLabel) {
-      return;
-    }
-
-    this.logger.verbose('searching if is to add labels');
-    const labelsToAdd: string[] = await this.getLabelsToAdd(message);
-
-    if (labelsToAdd.length === 0) {
-      this.logger.verbose('no labels to add');
-      return labelsToAdd;
-    }
-
-    this.addLabels(instance, conversation, labelsToAdd);
-
-    return labelsToAdd;
-  }
-
   public async addLabels(instance: InstanceDto, conversation: number, labels: string[]) {
+    if (labels.length === 0) {
+      return [];
+    }
+
     const client = await this.clientCw(instance);
     if (!client) {
       this.logger.warn('client not found');
       return null;
     }
 
-    const currentLabels: string[] = (
-      await client.conversationLabels.list({
-        accountId: this.provider.account_id,
-        conversationId: conversation,
-      })
-    ).payload;
-
-    const labelsToAdd = [...new Set([...currentLabels, ...labels])];
-
-    this.logger.verbose('checking if labels already exists in conversation');
-    if (!labelsToAdd.every((labelAdd) => currentLabels.find((currLabel) => currLabel === labelAdd) !== undefined)) {
-      this.logger.verbose(`adding labels to conversation: ${labelsToAdd}`);
-      await client.conversationLabels.add({
-        accountId: this.provider.account_id,
-        conversationId: conversation,
-        data: {
-          labels: labelsToAdd,
-        },
-      });
-
-      return labelsToAdd;
-    }
-
-    return [];
+    return this.chatwootLabel.addLabels(client, this.provider, instance, conversation, labels);
   }
 
   public async eventWhatsapp(event: string, instance: InstanceDto, body: any) {
@@ -1793,6 +1734,25 @@ export class ChatwootService {
         });
 
         return;
+      }
+
+      if (event === Events.LABELS_ASSOCIATION) {
+        Promise.all([this.getInbox(instance), this.findContact(instance, body.association.chatId.split('@')[0])])
+          .then(async ([inbox, contact]) => {
+            if (inbox && contact) {
+              const conversation = await this.getOpenConversationByContact(instance, inbox, contact);
+              if (conversation) {
+                this.chatwootLabel.labelAssociationWhatsapp(client, this.provider, instance, conversation, body);
+              }
+            }
+          })
+          .catch((error) => {
+            this.logger.error(error);
+          });
+      }
+
+      if (event === Events.LABELS_EDIT) {
+        this.chatwootLabel.labelEditWhatsapp(this.provider, instance, body);
       }
 
       if (event === 'messages.upsert' || event === 'send.message') {
@@ -1935,7 +1895,14 @@ export class ChatwootService {
             }
 
             if (!body.key.fromMe) {
-              this.processAutoLabel(instance, getConversation, bodyMessage);
+              this.chatwootLabel.processAutoLabel(
+                client,
+                this.provider,
+                instance,
+                getConversation,
+                body.key.remoteJid,
+                bodyMessage,
+              );
             }
 
             return send;
@@ -2020,9 +1987,12 @@ export class ChatwootService {
           }
 
           if (!body.key.fromMe) {
-            this.processAutoLabel(
+            this.chatwootLabel.processAutoLabel(
+              client,
+              this.provider,
               instance,
               getConversation,
+              body.key.remoteJid,
               `${bodyMessage} ${title} ${description} ${adsMessage.sourceUrl}`,
             );
           }
@@ -2084,7 +2054,14 @@ export class ChatwootService {
           }
 
           if (!body.key.fromMe) {
-            this.processAutoLabel(instance, getConversation, bodyMessage);
+            this.chatwootLabel.processAutoLabel(
+              client,
+              this.provider,
+              instance,
+              getConversation,
+              body.key.remoteJid,
+              bodyMessage,
+            );
           }
 
           return send;

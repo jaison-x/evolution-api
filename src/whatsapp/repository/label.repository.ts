@@ -63,7 +63,7 @@ export class LabelRepository extends Repository {
       this.logger.verbose('finding labels');
       if (this.dbSettings.ENABLED) {
         this.logger.verbose('finding labels in db');
-        return await this.labelModel.find({ owner: query.where.owner }).select(query.select ?? {});
+        return await this.labelModel.find(query.where).select(query.select ?? {});
       }
 
       this.logger.verbose('finding labels in store');
@@ -106,6 +106,54 @@ export class LabelRepository extends Repository {
       return { deleted: { labelId: query.where.id } };
     } catch (error) {
       return { error: error?.toString() };
+    }
+  }
+
+  public async update(data: LabelRaw[], instanceName: string, saveDb?: boolean): Promise<IInsert> {
+    try {
+      if (this.dbSettings.ENABLED && saveDb) {
+        this.logger.verbose('updating labels in db');
+
+        const labels = data.map((label) => {
+          return {
+            updateOne: {
+              filter: { id: label.id },
+              update: { ...label },
+            },
+          };
+        });
+
+        const { nModified } = await this.labelModel.bulkWrite(labels);
+
+        this.logger.verbose('labels updated in db: ' + nModified + ' labels');
+        return { insertCount: nModified };
+      }
+
+      this.logger.verbose('updating labels in store');
+
+      const store = this.configService.get<StoreConf>('STORE');
+
+      if (store.LABELS) {
+        this.logger.verbose('updating labels in store');
+        data.forEach((label) => {
+          this.writeStore({
+            path: join(this.storePath, 'labels', instanceName),
+            fileName: label.id,
+            data: label,
+          });
+          this.logger.verbose(
+            'labels updated in store in path: ' + join(this.storePath, 'labels', instanceName) + '/' + label.id,
+          );
+        });
+
+        this.logger.verbose('labels updated in store: ' + data.length + ' labels');
+        return { insertCount: data.length };
+      }
+
+      this.logger.verbose('labels not updated');
+      return { insertCount: 0 };
+    } catch (error) {
+      this.logger.error(error);
     }
   }
 }
