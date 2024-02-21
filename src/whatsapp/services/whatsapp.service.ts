@@ -2277,7 +2277,7 @@ export class WAStartupService {
         return;
       }
 
-      const labelName = label.name.replace(/[^\x20-\x7E]/g, '');
+      const labelName = label.name;
       if (!savedLabel || savedLabel.color !== label.color || savedLabel.name !== labelName) {
         this.logger.verbose('Sending data to webhook in event LABELS_EDIT');
         await this.repository.labels.insert(
