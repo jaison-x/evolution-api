@@ -1197,14 +1197,26 @@ export class ChatwootService {
             await waInstance.connectToWhatsapp(number);
           } else {
             this.logger.verbose('whatsapp already connected');
-            await this.createBotMessage(instance, `🚨 ${body.inbox.name} instance is connected.`, 'incoming');
+            await this.createBotMessage(
+              instance,
+              i18next.t('cw.inbox.alreadyConnected', {
+                inboxName: body.inbox.name,
+              }),
+              'incoming',
+            );
           }
         }
 
         if (command === 'clearcache') {
           this.logger.verbose('command clearcache found');
           waInstance.clearCacheChatwoot();
-          await this.createBotMessage(instance, `✅ ${body.inbox.name} instance cache cleared.`, 'incoming');
+          await this.createBotMessage(
+            instance,
+            i18next.t('cw.inbox.clearCache', {
+              inboxName: body.inbox.name,
+            }),
+            'incoming',
+          );
         }
 
         if (command === 'status') {
@@ -1214,19 +1226,34 @@ export class ChatwootService {
 
           if (!state) {
             this.logger.verbose('state not found');
-            await this.createBotMessage(instance, `⚠️ ${body.inbox.name} instance not found.`, 'incoming');
+            await this.createBotMessage(
+              instance,
+              i18next.t('cw.inbox.notFound', {
+                inboxName: body.inbox.name,
+              }),
+              'incoming',
+            );
           }
 
           if (state) {
             this.logger.verbose('state: ' + state + ' found');
-            await this.createBotMessage(instance, `⚠️ ${body.inbox.name} instance status: *${state}*`, 'incoming');
+            await this.createBotMessage(
+              instance,
+              i18next.t('cw.inbox.status', {
+                inboxName: body.inbox.name,
+                state: state,
+              }),
+              'incoming',
+            );
           }
         }
 
         if (command === 'disconnect' || command === 'desconectar') {
           this.logger.verbose('command disconnect found');
 
-          const msgLogout = `🚨 Disconnecting Whatsapp from inbox *${body.inbox.name}*: `;
+          const msgLogout = i18next.t('cw.inbox.disconnect', {
+            inboxName: body.inbox.name,
+          });
 
           this.logger.verbose('send message to chatwoot');
           await this.createBotMessage(instance, msgLogout, 'incoming');
@@ -1517,27 +1544,17 @@ export class ChatwootService {
       const latitude = result.degreesLatitude;
       const longitude = result.degreesLongitude;
 
-      const locationName = result?.name || 'Unknown';
-      const locationAddress = result?.address || 'Unknown';
+      const locationName = result?.name;
+      const locationAddress = result?.address;
 
       const formattedLocation =
-        '*Localização:*\n\n' +
-        '_Latitude:_ ' +
-        latitude +
-        '\n' +
-        '_Longitude:_ ' +
-        longitude +
-        '\n' +
-        '_Nome:_ ' +
-        locationName +
-        '\n' +
-        '_Endereço:_ ' +
-        locationAddress +
-        '\n' +
-        '_Url:_ https://www.google.com/maps/search/?api=1&query=' +
-        latitude +
-        ',' +
-        longitude;
+        `*${i18next.t('cw.locationMessage.location')}:*\n\n` +
+        `_${i18next.t('cw.locationMessage.latitude')}:_ ${latitude} \n` +
+        `_${i18next.t('cw.locationMessage.longitude')}:_ ${longitude} \n` +
+        (locationName ? `_${i18next.t('cw.locationMessage.locationName')}:_ ${locationName}\n` : '') +
+        (locationAddress ? `_${i18next.t('cw.locationMessage.locationAddress')}:_ ${locationAddress} \n` : '') +
+        `_${i18next.t('cw.locationMessage.locationUrl')}:_ ` +
+        `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 
       this.logger.verbose('message content: ' + formattedLocation);
 
@@ -1555,17 +1572,19 @@ export class ChatwootService {
         }
       });
 
-      let formattedContact = '*Contact:*\n\n' + '_Name:_ ' + contactInfo['FN'];
+      let formattedContact =
+        `*${i18next.t('cw.contactMessage.contact')}:*\n\n` +
+        `_${i18next.t('cw.contactMessage.name')}:_ ${contactInfo['FN']}`;
 
       let numberCount = 1;
       Object.keys(contactInfo).forEach((key) => {
         if (key.startsWith('item') && key.includes('TEL')) {
           const phoneNumber = contactInfo[key];
-          formattedContact += '\n_Number (' + numberCount + '):_ ' + phoneNumber;
+          formattedContact += `\n_${i18next.t('cw.contactMessage.number')} (${numberCount}):_ ${phoneNumber}`;
           numberCount++;
         } else if (key.includes('TEL')) {
           const phoneNumber = contactInfo[key];
-          formattedContact += '\n_Number (' + numberCount + '):_ ' + phoneNumber;
+          formattedContact += `\n_${i18next.t('cw.contactMessage.number')} (${numberCount}):_ ${phoneNumber}`;
           numberCount++;
         }
       });
@@ -1586,17 +1605,19 @@ export class ChatwootService {
           }
         });
 
-        let formattedContact = '*Contact:*\n\n' + '_Name:_ ' + contact.displayName;
+        let formattedContact = `*${i18next.t('cw.contactMessage.contact')}:*\n\n_${i18next.t(
+          'cw.contactMessage.name',
+        )}:_ ${contact.displayName}`;
 
         let numberCount = 1;
         Object.keys(contactInfo).forEach((key) => {
           if (key.startsWith('item') && key.includes('TEL')) {
             const phoneNumber = contactInfo[key];
-            formattedContact += '\n_Number (' + numberCount + '):_ ' + phoneNumber;
+            formattedContact += `\n_${i18next.t('cw.contactMessage.number')} (${numberCount}):_ ${phoneNumber}`;
             numberCount++;
           } else if (key.includes('TEL')) {
             const phoneNumber = contactInfo[key];
-            formattedContact += '\n_Number (' + numberCount + '):_ ' + phoneNumber;
+            formattedContact += `\n_${i18next.t('cw.contactMessage.number')} (${numberCount}):_ ${phoneNumber}`;
             numberCount++;
           }
         });
@@ -2148,7 +2169,10 @@ export class ChatwootService {
           return;
         }
 
-        const msgStatus = `⚡️ Instance status ${inbox.name}: ${data.status}`;
+        const msgStatus = i18next.t('cw.inbox.status', {
+          inboxName: inbox.name,
+          state: data.status,
+        });
 
         this.logger.verbose('send message to chatwoot');
         await this.createBotMessage(instance, msgStatus, 'incoming');
@@ -2160,7 +2184,7 @@ export class ChatwootService {
         if (body.status === 'open') {
           // if we have qrcode count then we understand that a new connection was established
           if (this.waMonitor.waInstances[instance.instanceName].qrCode.count > 0) {
-            const msgConnection = `🚀 Connection successfully established!`;
+            const msgConnection = i18next.t('cw.inbox.connected');
             this.logger.verbose('send message to chatwoot');
             await this.createBotMessage(instance, msgConnection, 'incoming');
             this.waMonitor.waInstances[instance.instanceName].qrCode.count = 0;
@@ -2221,7 +2245,7 @@ export class ChatwootService {
       return;
     }
 
-    this.createBotMessage(instance, `💬 Starting to import messages. Please wait...`, 'incoming');
+    this.createBotMessage(instance, i18next.t('cw.import.startImport'), 'incoming');
   }
 
   public isImportHistoryAvailable() {
@@ -2254,7 +2278,7 @@ export class ChatwootService {
       return;
     }
 
-    this.createBotMessage(instance, '💬 Importing messages. More one moment...', 'incoming');
+    this.createBotMessage(instance, i18next.t('cw.import.importingMessages'), 'incoming');
 
     const totalMessagesImported = await chatwootImport.importHistoryMessages(
       instance,
@@ -2265,10 +2289,10 @@ export class ChatwootService {
     this.updateContactAvatarInRecentConversations(instance);
 
     const msg = Number.isInteger(totalMessagesImported)
-      ? `${totalMessagesImported} messages imported. Refresh page to see the new messages`
-      : `Something went wrong in importing messages`;
+      ? i18next.t('cw.import.messagesImported', { totalMessagesImported })
+      : i18next.t('cw.import.messagesException');
 
-    this.createBotMessage(instance, `💬 ${msg}`, 'incoming');
+    this.createBotMessage(instance, msg, 'incoming');
 
     return totalMessagesImported;
   }
