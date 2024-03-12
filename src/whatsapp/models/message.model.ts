@@ -15,6 +15,7 @@ class ChatwootMessage {
   inboxId?: number;
   conversationId?: number;
   contactInbox?: { sourceId: string };
+  isRead?: boolean;
 }
 
 export class MessageRaw {
@@ -37,8 +38,9 @@ export class MessageRaw {
 type MessageRawBoolean<T> = {
   [P in keyof T]?: 0 | 1;
 };
-export type MessageRawSelect = Omit<MessageRawBoolean<MessageRaw>, 'key'> & {
+export type MessageRawSelect = Omit<Omit<MessageRawBoolean<MessageRaw>, 'key'>, 'chatwoot'> & {
   key?: MessageRawBoolean<Key>;
+  chatwoot?: MessageRawBoolean<ChatwootMessage>;
 };
 
 const messageSchema = new Schema<MessageRaw>({
@@ -61,6 +63,7 @@ const messageSchema = new Schema<MessageRaw>({
     inboxId: { type: Number },
     conversationId: { type: Number },
     contactInbox: { type: Object },
+    isRead: { type: Boolean },
   },
   isBot: { type: Boolean, required: false, default: false },
 });
