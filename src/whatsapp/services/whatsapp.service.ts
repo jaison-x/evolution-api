@@ -1945,7 +1945,10 @@ export class WAStartupService {
       try {
         this.logger.verbose('Event received: messages.upsert');
         for (const received of messages) {
-          if (received.message?.protocolMessage?.editedMessage || received.message?.editedMessage?.message) {
+          if (
+            this.localChatwoot.enabled &&
+            (received.message?.protocolMessage?.editedMessage || received.message?.editedMessage?.message)
+          ) {
             const editedMessage =
               received.message?.protocolMessage || received.message?.editedMessage?.message?.protocolMessage;
             if (editedMessage) {
