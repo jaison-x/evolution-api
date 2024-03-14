@@ -450,6 +450,7 @@ export class BaileysStartupService extends WAStartupService {
     this.logger.verbose('Connecting to whatsapp');
     try {
       this.loadWebhook();
+      this.loadChatnode();
       this.loadChatwoot();
       this.loadSettings();
       this.loadWebsocket();
@@ -503,7 +504,7 @@ export class BaileysStartupService extends WAStartupService {
         browser: number ? ['Chrome (Linux)', session.NAME, release()] : browser,
         version,
         markOnlineOnConnect: this.localSettings.always_online,
-        retryRequestDelayMs: 10,
+        retryRequestDelayMs: 250,
         connectTimeoutMs: 60_000,
         qrTimeout: 40_000,
         defaultQueryTimeoutMs: undefined,
@@ -593,7 +594,7 @@ export class BaileysStartupService extends WAStartupService {
         browser: this.phoneNumber ? ['Chrome (Linux)', session.NAME, release()] : browser,
         version,
         markOnlineOnConnect: this.localSettings.always_online,
-        retryRequestDelayMs: 10,
+        retryRequestDelayMs: 250,
         connectTimeoutMs: 60_000,
         qrTimeout: 40_000,
         defaultQueryTimeoutMs: undefined,
@@ -938,12 +939,23 @@ export class BaileysStartupService extends WAStartupService {
         this.logger.verbose('Event received: messages.upsert');
         for (const received of messages) {
           if (
+            this.localChatwoot.enabled &&
+            (received.message?.protocolMessage?.editedMessage || received.message?.editedMessage?.message)
+          ) {
+            const editedMessage =
+              received.message?.protocolMessage || received.message?.editedMessage?.message?.protocolMessage;
+            if (editedMessage) {
+              this.chatwootService.eventWhatsapp('messages.edit', { instanceName: this.instance.name }, editedMessage);
+            }
+          }
+
+          if (
             (type !== 'notify' && type !== 'append') ||
             received.message?.protocolMessage ||
             received.message?.pollUpdateMessage
           ) {
             this.logger.verbose('message rejected');
-            return;
+            continue;
           }
 
           if (Long.isLong(received.messageTimestamp)) {
@@ -952,7 +964,7 @@ export class BaileysStartupService extends WAStartupService {
 
           if (settings?.groups_ignore && received.key.remoteJid.includes('@g.us')) {
             this.logger.verbose('group ignored');
-            return;
+            continue;
           }
 
           let messageRaw: MessageRaw;
@@ -1031,6 +1043,14 @@ export class BaileysStartupService extends WAStartupService {
             }
           }
 
+          if (this.localChatnode.enabled && messageRaw.key.fromMe === false && type === 'notify') {
+            await this.chatnodeService.sendChatnode(
+              { instanceName: this.instance.name },
+              messageRaw.key.remoteJid,
+              messageRaw,
+            );
+          }
+
           const typebotSessionRemoteJid = this.localTypebot.sessions?.find(
             (session) => session.remoteJid === received.key.remoteJid,
           );
@@ -1071,7 +1091,7 @@ export class BaileysStartupService extends WAStartupService {
 
           if (contactRaw.id === 'status@broadcast') {
             this.logger.verbose('Contact is status@broadcast');
-            return;
+            continue;
           }
 
           if (contact?.length) {
@@ -1096,7 +1116,7 @@ export class BaileysStartupService extends WAStartupService {
 
             this.logger.verbose('Updating contact in database');
             await this.repository.contact.update([contactRaw], this.instance.name, database.SAVE_DATA.CONTACTS);
-            return;
+            continue;
           }
 
           this.logger.verbose('Contact not found in database');
@@ -1241,12 +1261,17 @@ export class BaileysStartupService extends WAStartupService {
     [Events.LABELS_EDIT]: async (label: Label, database: Database) => {
       this.logger.verbose('Event received: labels.edit');
       this.logger.verbose('Finding labels in database');
+
+      if (this.localChatwoot.enabled) {
+        this.chatwootService.eventWhatsapp(Events.LABELS_EDIT, { instanceName: this.instance.name }, label);
+      }
+
       const labelsRepository = await this.repository.labels.find({
         where: { owner: this.instance.name },
       });
 
       const savedLabel = labelsRepository.find((l) => l.id === label.id);
-      if (label.deleted && savedLabel) {
+      if (label.deleted) {
         this.logger.verbose('Sending data to webhook in event LABELS_EDIT');
         await this.repository.labels.delete({
           where: { owner: this.instance.name, id: label.id },
@@ -1255,7 +1280,7 @@ export class BaileysStartupService extends WAStartupService {
         return;
       }
 
-      const labelName = label.name.replace(/[^\x20-\x7E]/g, '');
+      const labelName = label.name;
       if (!savedLabel || savedLabel.color !== label.color || savedLabel.name !== labelName) {
         this.logger.verbose('Sending data to webhook in event LABELS_EDIT');
         await this.repository.labels.insert(
@@ -1309,6 +1334,10 @@ export class BaileysStartupService extends WAStartupService {
         chatId: data.association.chatId,
         labelId: data.association.labelId,
       });
+
+      if (this.localChatwoot.enabled) {
+        this.chatwootService.eventWhatsapp(Events.LABELS_ASSOCIATION, { instanceName: this.instance.name }, data);
+      }
     },
   };
 
@@ -1793,6 +1822,7 @@ export class BaileysStartupService extends WAStartupService {
         messageTimestamp: messageSent.messageTimestamp as number,
         owner: this.instance.name,
         source: getDevice(messageSent.key.id),
+        isBot: options?.isBot || false,
       };
 
       this.logger.log(messageRaw);

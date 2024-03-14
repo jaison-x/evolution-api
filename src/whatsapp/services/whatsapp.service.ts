@@ -330,7 +330,7 @@ export class WAStartupService {
     return data;
   }
 
-  private async loadChatwoot() {
+  public async loadChatwoot() {
     this.logger.verbose('Loading chatwoot');
     const data = await this.repository.chatwoot.find(this.instanceName);
     this.localChatwoot.enabled = data?.enabled;
