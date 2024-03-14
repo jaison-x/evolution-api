@@ -10,6 +10,7 @@ import { ChatRepository } from './chat.repository';
 import { ChatnodeRepository } from './chatnode.repository';
 import { ChatwootRepository } from './chatwoot.repository';
 import { ContactRepository } from './contact.repository';
+import { IntegrationRepository } from './integration.repository';
 import { LabelRepository } from './label.repository';
 import { MessageRepository } from './message.repository';
 import { MessageUpRepository } from './messageUp.repository';
@@ -35,6 +36,7 @@ export class RepositoryBroker {
     public readonly typebot: TypebotRepository,
     public readonly proxy: ProxyRepository,
     public readonly chamaai: ChamaaiRepository,
+    public readonly integration: IntegrationRepository,
     public readonly auth: AuthRepository,
     public readonly labels: LabelRepository,
     private configService: ConfigService,
@@ -74,6 +76,7 @@ export class RepositoryBroker {
         const typebotDir = join(storePath, 'typebot');
         const proxyDir = join(storePath, 'proxy');
         const chamaaiDir = join(storePath, 'chamaai');
+        const integrationDir = join(storePath, 'integration');
         const tempDir = join(storePath, 'temp');
 
         if (!fs.existsSync(authDir)) {
@@ -135,6 +138,10 @@ export class RepositoryBroker {
         if (!fs.existsSync(chamaaiDir)) {
           this.logger.verbose('creating chamaai dir: ' + chamaaiDir);
           fs.mkdirSync(chamaaiDir, { recursive: true });
+        }
+        if (!fs.existsSync(integrationDir)) {
+          this.logger.verbose('creating integration dir: ' + integrationDir);
+          fs.mkdirSync(integrationDir, { recursive: true });
         }
         if (!fs.existsSync(tempDir)) {
           this.logger.verbose('creating temp dir: ' + tempDir);

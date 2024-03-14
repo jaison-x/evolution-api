@@ -71,6 +71,8 @@ export type Redis = {
 
 export type Rabbitmq = {
   ENABLED: boolean;
+  MODE: string; // global, single, isolated
+  EXCHANGE_NAME: string; // available for global and single, isolated mode will use instance name as exchange
   URI: string;
 };
 
@@ -88,6 +90,13 @@ export type Websocket = {
 
 export type Chatnode = {
   API_KEY: string;
+};
+
+export type WaBusiness = {
+  TOKEN_WEBHOOK: string;
+  URL: string;
+  VERSION: string;
+  LANGUAGE: string;
 };
 
 export type EventsWebhook = {
@@ -184,8 +193,10 @@ export interface Env {
   RABBITMQ: Rabbitmq;
   SQS: Sqs;
   WEBSOCKET: Websocket;
+  WA_BUSINESS: WaBusiness;
   LOG: Log;
   DEL_INSTANCE: DelInstance;
+  DEL_TEMP_INSTANCES: boolean;
   LANGUAGE: Language;
   WEBHOOK: Webhook;
   CONFIG_SESSION_PHONE: ConfigSessionPhone;
@@ -280,6 +291,8 @@ export class ConfigService {
       },
       RABBITMQ: {
         ENABLED: process.env?.RABBITMQ_ENABLED === 'true',
+        MODE: process.env?.RABBITMQ_MODE || 'isolated',
+        EXCHANGE_NAME: process.env?.RABBITMQ_EXCHANGE_NAME || 'evolution_exchange',
         URI: process.env.RABBITMQ_URI || '',
       },
       SQS: {
@@ -291,6 +304,12 @@ export class ConfigService {
       },
       WEBSOCKET: {
         ENABLED: process.env?.WEBSOCKET_ENABLED === 'true',
+      },
+      WA_BUSINESS: {
+        TOKEN_WEBHOOK: process.env.WA_BUSINESS_TOKEN_WEBHOOK || '',
+        URL: process.env.WA_BUSINESS_URL || '',
+        VERSION: process.env.WA_BUSINESS_VERSION || '',
+        LANGUAGE: process.env.WA_BUSINESS_LANGUAGE || 'en',
       },
       LOG: {
         LEVEL: (process.env?.LOG_LEVEL.split(',') as LogLevel[]) || [
@@ -309,6 +328,9 @@ export class ConfigService {
       DEL_INSTANCE: isBooleanString(process.env?.DEL_INSTANCE)
         ? process.env.DEL_INSTANCE === 'true'
         : Number.parseInt(process.env.DEL_INSTANCE) || false,
+      DEL_TEMP_INSTANCES: isBooleanString(process.env?.DEL_TEMP_INSTANCES)
+        ? process.env.DEL_TEMP_INSTANCES === 'true'
+        : true,
       LANGUAGE: process.env?.LANGUAGE || 'en',
       WEBHOOK: {
         GLOBAL: {
