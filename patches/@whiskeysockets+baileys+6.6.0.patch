@@ -13,6 +13,26 @@ index 1046c0d..d2a0c7d 100644
                          fullMessage.messageStubType = WAProto_1.proto.WebMessageInfo.StubType.CIPHERTEXT;
                          fullMessage.messageStubParameters = [err.message];
                      }
+diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.js b/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.js
+index 9cfdc03..61462a8 100644
+--- a/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.js
++++ b/node_modules/@whiskeysockets/baileys/lib/Utils/link-preview.js
+@@ -61,6 +61,7 @@ const getUrlInfo = async (text, opts = {
+                 originalThumbnailUrl: image
+             };
+             if (opts.uploadImage) {
++                try {
+                 const { imageMessage } = await (0, messages_1.prepareWAMessageMedia)({ image: { url: image } }, {
+                     upload: opts.uploadImage,
+                     mediaTypeOverride: 'thumbnail-link',
+@@ -70,6 +71,7 @@ const getUrlInfo = async (text, opts = {
+                     ? Buffer.from(imageMessage.jpegThumbnail)
+                     : undefined;
+                 urlInfo.highQualityThumbnail = imageMessage || undefined;
++                } catch (error) {}
+             }
+             else {
+                 try {
 diff --git a/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js b/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
 index 726886e..980be1a 100644
 --- a/node_modules/@whiskeysockets/baileys/lib/Utils/messages.js
