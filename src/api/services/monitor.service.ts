@@ -205,14 +205,14 @@ export class WAMonitoringService {
     this.logger.verbose('cron to delete instance files started');
     setInterval(async () => {
       if (this.db.ENABLED && this.db.SAVE_DATA.INSTANCE) {
-        const collections = await this.dbInstance.collections();
-        collections.forEach(async (collection) => {
-          const name = collection.namespace.replace(/^[\w-]+./, '');
-          await this.dbInstance.collection(name).deleteMany({
-            $or: [{ _id: { $regex: /^app.state.*/ } }, { _id: { $regex: /^session-.*/ } }],
-          });
-          this.logger.verbose('instance files deleted: ' + name);
-        });
+        // const collections = await this.dbInstance.collections();
+        // collections.forEach(async (collection) => {
+        //   const name = collection.namespace.replace(/^[\w-]+./, '');
+        //   await this.dbInstance.collection(name).deleteMany({
+        //     $or: [{ _id: { $regex: /^app.state.*/ } }, { _id: { $regex: /^session-.*/ } }],
+        //   });
+        //   this.logger.verbose('instance files deleted: ' + name);
+        // });
       } else if (!this.redis.REDIS.ENABLED && !this.redis.REDIS.SAVE_INSTANCES) {
         const dir = opendirSync(INSTANCE_DIR, { encoding: 'utf-8' });
         for await (const dirent of dir) {

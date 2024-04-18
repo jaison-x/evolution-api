@@ -1,6 +1,6 @@
-import { Logger } from '../../config/logger.config';
+import { Logger } from '../../../../config/logger.config';
+import { InstanceDto } from '../../../dto/instance.dto';
 import { ChatnodeDto } from '../dto/chatnode.dto';
-import { InstanceDto } from '../dto/instance.dto';
 import { ChatnodeService } from '../services/chatnode.service';
 
 export class ChatnodeController {

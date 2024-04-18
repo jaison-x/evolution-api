@@ -2,13 +2,13 @@ import ChatwootClient, { conversation } from '@figuro/chatwoot-sdk';
 import { Label } from '@whiskeysockets/baileys/lib/Types/Label';
 import { LabelAssociation } from '@whiskeysockets/baileys/lib/Types/LabelAssociation';
 
-import { Logger } from '../config/logger.config';
+import { Logger } from '../../../../config/logger.config';
+import { InstanceDto } from '../../../dto/instance.dto';
+import { HandleLabelDto } from '../../../dto/label.dto';
+import { ChatwootRaw, LabelRaw } from '../../../models';
+import { RepositoryBroker } from '../../../repository/repository.manager';
+import { WAMonitoringService } from '../../../services/monitor.service';
 import { postgresClient } from '../libs/postgres.client';
-import { InstanceDto } from '../whatsapp/dto/instance.dto';
-import { HandleLabelDto } from '../whatsapp/dto/label.dto';
-import { ChatwootRaw, LabelRaw } from '../whatsapp/models';
-import { RepositoryBroker } from '../whatsapp/repository/repository.manager';
-import { WAMonitoringService } from '../whatsapp/services/monitor.service';
 
 export class ChatwootLabel {
   private readonly logger = new Logger(ChatwootLabel.name);

@@ -28,6 +28,7 @@ import { WAMonitoringService } from '../../../services/monitor.service';
 import { Events } from '../../../types/wa.types';
 import { ChatwootDto } from '../dto/chatwoot.dto';
 import { chatwootImport } from '../utils/chatwoot-import-helper';
+import { ChatwootLabel } from '../utils/chatwoot-label-helper';
 
 export class ChatwootService {
   private readonly logger = new Logger(ChatwootService.name);

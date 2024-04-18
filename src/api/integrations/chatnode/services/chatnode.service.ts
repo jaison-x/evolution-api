@@ -1,13 +1,13 @@
 import axios from 'axios';
 
-import { Chatnode, ConfigService } from '../../config/env.config';
-import { Logger } from '../../config/logger.config';
+import { Chatnode, ConfigService } from '../../../../config/env.config';
+import { Logger } from '../../../../config/logger.config';
+import { InstanceDto } from '../../../dto/instance.dto';
+import { ChatnodeRaw } from '../../../models';
+import { RepositoryBroker } from '../../../repository/repository.manager';
+import { WAMonitoringService } from '../../../services/monitor.service';
+import { ChatwootService } from '../../chatwoot/services/chatwoot.service';
 import { ActiveHoursConfig, ChatnodeDto } from '../dto/chatnode.dto';
-import { InstanceDto } from '../dto/instance.dto';
-import { ChatnodeRaw } from '../models';
-import { RepositoryBroker } from '../repository/repository.manager';
-import { ChatwootService } from './chatwoot.service';
-import { WAMonitoringService } from './monitor.service';
 
 export class ChatnodeService {
   constructor(

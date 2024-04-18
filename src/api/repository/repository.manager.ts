@@ -5,6 +5,7 @@ import { join } from 'path';
 import { Auth, ConfigService, Database } from '../../config/env.config';
 import { Logger } from '../../config/logger.config';
 import { ChamaaiRepository } from '../integrations/chamaai/repository/chamaai.repository';
+import { ChatnodeRepository } from '../integrations/chatnode/repository/chatnode.repository';
 import { ChatwootRepository } from '../integrations/chatwoot/repository/chatwoot.repository';
 import { RabbitmqRepository } from '../integrations/rabbitmq/repository/rabbitmq.repository';
 import { SqsRepository } from '../integrations/sqs/repository/sqs.repository';

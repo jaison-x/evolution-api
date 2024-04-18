@@ -5,6 +5,7 @@ import { Auth, configService } from '../../config/env.config';
 import { authGuard } from '../guards/auth.guard';
 import { instanceExistsGuard, instanceLoggedGuard } from '../guards/instance.guard';
 import { ChamaaiRouter } from '../integrations/chamaai/routes/chamaai.router';
+import { ChatnodeRouter } from '../integrations/chatnode/routes/chatnode.router';
 import { ChatwootRouter } from '../integrations/chatwoot/routes/chatwoot.router';
 import { RabbitmqRouter } from '../integrations/rabbitmq/routes/rabbitmq.router';
 import { SqsRouter } from '../integrations/sqs/routes/sqs.router';

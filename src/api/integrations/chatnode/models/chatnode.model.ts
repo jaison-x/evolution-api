@@ -1,6 +1,6 @@
 import { Schema } from 'mongoose';
 
-import { dbserver } from '../../libs/db.connect';
+import { dbserver } from '../../../../libs/db.connect';
 import { ActiveHoursConfig } from '../dto/chatnode.dto';
 
 export class ChatnodeRaw {

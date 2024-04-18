@@ -1,9 +1,9 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-import { ConfigService } from '../../config/env.config';
-import { Logger } from '../../config/logger.config';
-import { IInsert, Repository } from '../abstract/abstract.repository';
+import { ConfigService } from '../../../../config/env.config';
+import { Logger } from '../../../../config/logger.config';
+import { IInsert, Repository } from '../../../abstract/abstract.repository';
 import { ChatnodeRaw, IChatnodeModel } from '../models/chatnode.model';
 
 export class ChatnodeRepository extends Repository {

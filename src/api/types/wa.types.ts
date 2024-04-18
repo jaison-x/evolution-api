@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import { AuthenticationState, WAConnectionState } from '@whiskeysockets/baileys';
 
-import { ActiveHoursConfig } from '../dto/chatnode.dto';
+import { ActiveHoursConfig } from '../integrations/chatnode/dto/chatnode.dto';
 
 export enum Events {
   APPLICATION_STARTUP = 'application.startup',
