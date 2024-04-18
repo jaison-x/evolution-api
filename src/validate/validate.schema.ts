@@ -1,6 +1,13 @@
 import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
 import { v4 } from 'uuid';
 
+// Integrations Schema
+export * from '../api/integrations/chamaai/validate/chamaai.schema';
+export * from '../api/integrations/chatwoot/validate/chatwoot.schema';
+export * from '../api/integrations/rabbitmq/validate/rabbitmq.schema';
+export * from '../api/integrations/sqs/validate/sqs.schema';
+export * from '../api/integrations/typebot/validate/typebot.schema';
+
 const isNotEmpty = (...propertyNames: string[]): JSONSchema7 => {
   const properties = {};
   propertyNames.forEach(
@@ -159,6 +166,18 @@ export const presenceSchema: JSONSchema7 = {
     options: { ...optionsSchema, required: ['presence', 'delay'] },
   },
   required: ['options', 'number'],
+};
+
+export const presenceOnlySchema: JSONSchema7 = {
+  $id: v4(),
+  type: 'object',
+  properties: {
+    presence: {
+      type: 'string',
+      enum: ['unavailable', 'available', 'composing', 'recording', 'paused'],
+    },
+  },
+  required: ['presence'],
 };
 
 export const pollMessageSchema: JSONSchema7 = {
@@ -394,7 +413,7 @@ export const listMessageSchema: JSONSchema7 = {
                     description: { type: 'string' },
                     rowId: { type: 'string' },
                   },
-                  required: ['title', 'description', 'rowId'],
+                  required: ['title', 'rowId'],
                   ...isNotEmpty('title', 'description', 'rowId'),
                 },
               },
@@ -1092,6 +1111,99 @@ export const chatnodeSchema: JSONSchema7 = {
   ...isNotEmpty('enabled', 'bot_id'),
 };
 
+export const chatnodeSchema: JSONSchema7 = {
+  $id: v4(),
+  type: 'object',
+  properties: {
+    enabled: { type: 'boolean', enum: [true, false] },
+    bot_id: { type: 'string' },
+    sign_name: { type: 'string' },
+    active_hours: {
+      type: 'object',
+      properties: {
+        0: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ini: { type: 'string' },
+              end: { type: 'string' },
+            },
+          },
+        },
+        1: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ini: { type: 'string' },
+              end: { type: 'string' },
+            },
+          },
+        },
+        2: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ini: { type: 'string' },
+              end: { type: 'string' },
+            },
+          },
+        },
+        3: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ini: { type: 'string' },
+              end: { type: 'string' },
+            },
+          },
+        },
+        4: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ini: { type: 'string' },
+              end: { type: 'string' },
+            },
+          },
+        },
+        5: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ini: { type: 'string' },
+              end: { type: 'string' },
+            },
+          },
+        },
+        6: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ini: { type: 'string' },
+              end: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    numbers_always_active: {
+      type: 'array',
+      items: {
+        type: 'string',
+      },
+    },
+  },
+  required: ['enabled', 'bot_id'],
+  ...isNotEmpty('enabled', 'bot_id'),
+};
+
 export const websocketSchema: JSONSchema7 = {
   $id: v4(),
   type: 'object',
@@ -1137,135 +1249,6 @@ export const websocketSchema: JSONSchema7 = {
   ...isNotEmpty('enabled'),
 };
 
-export const rabbitmqSchema: JSONSchema7 = {
-  $id: v4(),
-  type: 'object',
-  properties: {
-    enabled: { type: 'boolean', enum: [true, false] },
-    events: {
-      type: 'array',
-      minItems: 0,
-      items: {
-        type: 'string',
-        enum: [
-          'APPLICATION_STARTUP',
-          'QRCODE_UPDATED',
-          'MESSAGES_SET',
-          'MESSAGES_UPSERT',
-          'MESSAGES_UPDATE',
-          'MESSAGES_DELETE',
-          'SEND_MESSAGE',
-          'CONTACTS_SET',
-          'CONTACTS_UPSERT',
-          'CONTACTS_UPDATE',
-          'PRESENCE_UPDATE',
-          'CHATS_SET',
-          'CHATS_UPSERT',
-          'CHATS_UPDATE',
-          'CHATS_DELETE',
-          'GROUPS_UPSERT',
-          'GROUP_UPDATE',
-          'GROUP_PARTICIPANTS_UPDATE',
-          'CONNECTION_UPDATE',
-          'LABELS_EDIT',
-          'LABELS_ASSOCIATION',
-          'CALL',
-          'NEW_JWT_TOKEN',
-          'TYPEBOT_START',
-          'TYPEBOT_CHANGE_STATUS',
-          'CHAMA_AI_ACTION',
-        ],
-      },
-    },
-  },
-  required: ['enabled'],
-  ...isNotEmpty('enabled'),
-};
-
-export const sqsSchema: JSONSchema7 = {
-  $id: v4(),
-  type: 'object',
-  properties: {
-    enabled: { type: 'boolean', enum: [true, false] },
-    events: {
-      type: 'array',
-      minItems: 0,
-      items: {
-        type: 'string',
-        enum: [
-          'APPLICATION_STARTUP',
-          'QRCODE_UPDATED',
-          'MESSAGES_SET',
-          'MESSAGES_UPSERT',
-          'MESSAGES_UPDATE',
-          'MESSAGES_DELETE',
-          'SEND_MESSAGE',
-          'CONTACTS_SET',
-          'CONTACTS_UPSERT',
-          'CONTACTS_UPDATE',
-          'PRESENCE_UPDATE',
-          'CHATS_SET',
-          'CHATS_UPSERT',
-          'CHATS_UPDATE',
-          'CHATS_DELETE',
-          'GROUPS_UPSERT',
-          'GROUP_UPDATE',
-          'GROUP_PARTICIPANTS_UPDATE',
-          'CONNECTION_UPDATE',
-          'LABELS_EDIT',
-          'LABELS_ASSOCIATION',
-          'CALL',
-          'NEW_JWT_TOKEN',
-          'TYPEBOT_START',
-          'TYPEBOT_CHANGE_STATUS',
-          'CHAMA_AI_ACTION',
-        ],
-      },
-    },
-  },
-  required: ['enabled'],
-  ...isNotEmpty('enabled'),
-};
-
-export const typebotSchema: JSONSchema7 = {
-  $id: v4(),
-  type: 'object',
-  properties: {
-    enabled: { type: 'boolean', enum: [true, false] },
-    url: { type: 'string' },
-    typebot: { type: 'string' },
-    expire: { type: 'integer' },
-    delay_message: { type: 'integer' },
-    unknown_message: { type: 'string' },
-    listening_from_me: { type: 'boolean', enum: [true, false] },
-  },
-  required: ['enabled', 'url', 'typebot', 'expire', 'delay_message', 'unknown_message', 'listening_from_me'],
-  ...isNotEmpty('enabled', 'url', 'typebot', 'expire', 'delay_message', 'unknown_message', 'listening_from_me'),
-};
-
-export const typebotStatusSchema: JSONSchema7 = {
-  $id: v4(),
-  type: 'object',
-  properties: {
-    remoteJid: { type: 'string' },
-    status: { type: 'string', enum: ['opened', 'closed', 'paused'] },
-  },
-  required: ['remoteJid', 'status'],
-  ...isNotEmpty('remoteJid', 'status'),
-};
-
-export const typebotStartSchema: JSONSchema7 = {
-  $id: v4(),
-  type: 'object',
-  properties: {
-    remoteJid: { type: 'string' },
-    url: { type: 'string' },
-    typebot: { type: 'string' },
-  },
-  required: ['remoteJid', 'url', 'typebot'],
-  ...isNotEmpty('remoteJid', 'url', 'typebot'),
-};
-
 export const proxySchema: JSONSchema7 = {
   $id: v4(),
   type: 'object',
@@ -1286,20 +1269,6 @@ export const proxySchema: JSONSchema7 = {
   },
   required: ['enabled', 'proxy'],
   ...isNotEmpty('enabled', 'proxy'),
-};
-
-export const chamaaiSchema: JSONSchema7 = {
-  $id: v4(),
-  type: 'object',
-  properties: {
-    enabled: { type: 'boolean', enum: [true, false] },
-    url: { type: 'string' },
-    token: { type: 'string' },
-    waNumber: { type: 'string' },
-    answerByAudio: { type: 'boolean', enum: [true, false] },
-  },
-  required: ['enabled', 'url', 'token', 'waNumber', 'answerByAudio'],
-  ...isNotEmpty('enabled', 'url', 'token', 'waNumber', 'answerByAudio'),
 };
 
 export const handleLabelSchema: JSONSchema7 = {
