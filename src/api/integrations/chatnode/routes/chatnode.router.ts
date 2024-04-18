@@ -3,10 +3,11 @@ import { RequestHandler, Router } from 'express';
 import { HttpStatus } from '../../../../api/routes/index.router';
 import { chatnodeController } from '../../../../api/server.module';
 import { Logger } from '../../../../config/logger.config';
-import { chatnodeSchema, instanceNameSchema } from '../../../../validate/validate.schema';
+import { instanceNameSchema } from '../../../../validate/validate.schema';
 import { RouterBroker } from '../../../abstract/abstract.router';
 import { InstanceDto } from '../../../dto/instance.dto';
 import { ChatnodeDto } from '../dto/chatnode.dto';
+import { chatnodeSchema } from '../validate/chatnode.schema';
 
 export class ChatnodeRouter extends RouterBroker {
   private readonly logger = new Logger(ChatnodeRouter.name);

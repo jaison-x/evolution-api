@@ -203,5 +203,4 @@ AUTHENTICATION:
 CHATNODE:
   API_KEY: false
 
-
 LANGUAGE: "pt-BR" # pt-BR, en 
