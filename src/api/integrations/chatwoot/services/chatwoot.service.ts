@@ -323,11 +323,21 @@ export class ChatwootService {
       };
     }
 
+    let contact: contact;
     this.logger.verbose('create contact in chatwoot');
-    const contact = await client.contacts.create({
-      accountId: this.provider.account_id,
-      data,
-    });
+    try {
+      contact = await client.contacts.create({
+        accountId: this.provider.account_id,
+        data,
+      });
+    } catch (error) {
+      // if contact already exists, we just find the contact
+      console.log('Buscando contato já existente: ' + phoneNumber);
+      contact = await this.findContact(instance, phoneNumber);
+      if (!contact) {
+        throw error;
+      }
+    }
 
     if (!contact) {
       this.logger.warn('contact not found');
