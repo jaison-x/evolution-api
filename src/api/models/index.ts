@@ -1,4 +1,5 @@
 export * from '../integrations/chamaai/models/chamaai.model';
+export * from '../integrations/chatnode/models/chatnode.model';
 export * from '../integrations/chatwoot/models/chatwoot.model';
 export * from '../integrations/rabbitmq/models/rabbitmq.model';
 export * from '../integrations/sqs/models/sqs.model';
