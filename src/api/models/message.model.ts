@@ -33,6 +33,7 @@ export class MessageRaw {
   chatwoot?: ChatwootMessage;
   isBot?: boolean;
   contextInfo?: any;
+  status?: wa.StatusMessage | any;
 }
 
 type MessageRawBoolean<T> = {

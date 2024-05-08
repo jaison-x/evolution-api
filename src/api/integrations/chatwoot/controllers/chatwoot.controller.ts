@@ -58,9 +58,12 @@ export class ChatwootController {
       data.auto_label = false;
       data.auto_label_config = [];
       data.auto_create = false;
+      data.name_inbox = '';
     }
 
-    data.name_inbox = instance.instanceName;
+    if (!data.name_inbox || data.name_inbox === '') {
+      data.name_inbox = instance.instanceName;
+    }
 
     const result = await this.chatwootService.create(instance, data);
 

@@ -30,29 +30,13 @@ export const chatwootSchema: JSONSchema7 = {
     url: { type: 'string' },
     sign_msg: { type: 'boolean', enum: [true, false] },
     sign_delimiter: { type: ['string', 'null'] },
+    name_inbox: { type: ['string', 'null'] },
     reopen_conversation: { type: 'boolean', enum: [true, false] },
     conversation_pending: { type: 'boolean', enum: [true, false] },
+    auto_create: { type: 'boolean', enum: [true, false] },
     import_contacts: { type: 'boolean', enum: [true, false] },
     import_messages: { type: 'boolean', enum: [true, false] },
     days_limit_import_messages: { type: 'number' },
-    sync_label: { type: 'boolean', enum: [true, false] },
-    auto_label: { type: 'boolean', enum: [true, false] },
-    auto_label_config: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          regex: {
-            type: 'array',
-            items: {
-              type: 'string',
-            },
-          },
-          label: { type: 'string' },
-        },
-      },
-    },
-    auto_create: { type: 'boolean', enum: [true, false] },
   },
   required: ['enabled', 'account_id', 'token', 'url', 'sign_msg', 'reopen_conversation', 'conversation_pending'],
   ...isNotEmpty('account_id', 'token', 'url', 'sign_msg', 'reopen_conversation', 'conversation_pending'),
