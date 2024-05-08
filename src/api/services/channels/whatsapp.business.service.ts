@@ -26,11 +26,7 @@ import { ContactRaw, MessageRaw, MessageUpdateRaw, SettingsRaw } from '../../mod
 import { RepositoryBroker } from '../../repository/repository.manager';
 import { Events, wa } from '../../types/wa.types';
 import { CacheService } from './../cache.service';
-<<<<<<<< HEAD:src/api/services/whatsapp/whatsapp.business.service.ts
-import { WAStartupService } from './../whatsapp.service';
-========
 import { ChannelStartupService } from './../channel.service';
->>>>>>>> upstream/main:src/api/services/channels/whatsapp.business.service.ts
 
 export class BusinessStartupService extends ChannelStartupService {
   constructor(
@@ -1260,6 +1256,9 @@ export class BusinessStartupService extends ChannelStartupService {
     throw new BadRequestException('Method not available on WhatsApp Business API');
   }
   public async archiveChat() {
+    throw new BadRequestException('Method not available on WhatsApp Business API');
+  }
+  public async markChatUnread() {
     throw new BadRequestException('Method not available on WhatsApp Business API');
   }
   public async fetchProfile() {

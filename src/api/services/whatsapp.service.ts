@@ -21,11 +21,8 @@ import { Logger } from '../../config/logger.config';
 import { ROOT_DIR } from '../../config/path.config';
 import { NotFoundException } from '../../exceptions';
 import { ChamaaiService } from '../integrations/chamaai/services/chamaai.service';
-<<<<<<<< HEAD:src/api/services/whatsapp.service.ts
 import { ChatnodeRaw } from '../integrations/chatnode/models/chatnode.model';
 import { ChatnodeService } from '../integrations/chatnode/services/chatnode.service';
-========
->>>>>>>> upstream/main:src/api/services/channel.service.ts
 import { ChatwootRaw } from '../integrations/chatwoot/models/chatwoot.model';
 import { ChatwootService } from '../integrations/chatwoot/services/chatwoot.service';
 import { getAMQP, removeQueues } from '../integrations/rabbitmq/libs/amqp.server';
@@ -934,11 +931,7 @@ export class ChannelStartupService {
 
         if (this.configService.get<Log>('LOG').LEVEL.includes('WEBHOOKS')) {
           const logData = {
-<<<<<<<< HEAD:src/api/services/whatsapp.service.ts
-            local: WAStartupService.name + '.sendData-WebsocketGlobal',
-========
             local: ChannelStartupService.name + '.sendData-WebsocketGlobal',
->>>>>>>> upstream/main:src/api/services/channel.service.ts
             event,
             instance: this.instance.name,
             data,

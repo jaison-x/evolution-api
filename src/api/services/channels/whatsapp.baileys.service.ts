@@ -68,6 +68,7 @@ import {
   DeleteMessage,
   getBase64FromMediaMessageDto,
   LastMessage,
+  MarkChatUnreadDto,
   NumberBusiness,
   OnWhatsAppDto,
   PrivacySettingDto,
@@ -117,15 +118,9 @@ import { RepositoryBroker } from '../../repository/repository.manager';
 import { waMonitor } from '../../server.module';
 import { Events, MessageSubtype, TypeMediaMessage, wa } from '../../types/wa.types';
 import { CacheService } from './../cache.service';
-<<<<<<<< HEAD:src/api/services/whatsapp/whatsapp.baileys.service.ts
-import { WAStartupService } from './../whatsapp.service';
-
-export class BaileysStartupService extends WAStartupService {
-========
 import { ChannelStartupService } from './../channel.service';
 
 export class BaileysStartupService extends ChannelStartupService {
->>>>>>>> upstream/main:src/api/services/channels/whatsapp.baileys.service.ts
   constructor(
     public readonly configService: ConfigService,
     public readonly eventEmitter: EventEmitter2,
@@ -153,7 +148,6 @@ export class BaileysStartupService extends ChannelStartupService {
   public mobile: boolean;
 
   private async recoveringMessages() {
-<<<<<<<< HEAD:src/api/services/whatsapp/whatsapp.baileys.service.ts
     // const cacheConf = this.configService.get<CacheConf>('CACHE');
     // if ((cacheConf?.REDIS?.ENABLED && cacheConf?.REDIS?.URI !== '') || cacheConf?.LOCAL?.ENABLED) {
     //   setInterval(async () => {
@@ -169,25 +163,6 @@ export class BaileysStartupService extends ChannelStartupService {
     //     });
     //   }, 30000);
     // }
-========
-    this.logger.info('Recovering messages lost');
-    const cacheConf = this.configService.get<CacheConf>('CACHE');
-
-    if ((cacheConf?.REDIS?.ENABLED && cacheConf?.REDIS?.URI !== '') || cacheConf?.LOCAL?.ENABLED) {
-      setInterval(async () => {
-        this.messagesLostCache.keys().then((keys) => {
-          keys.forEach(async (key) => {
-            const message = await this.messagesLostCache.get(key.split(':')[2]);
-
-            if (message.messageStubParameters && message.messageStubParameters[0] === 'Message absent from node') {
-              this.logger.info('Message absent from node, retrying to send, key: ' + key.split(':')[2]);
-              await this.client.sendMessageAck(JSON.parse(message.messageStubParameters[1], BufferJSON.reviver));
-            }
-          });
-        });
-      }, 30000);
-    }
->>>>>>>> upstream/main:src/api/services/channels/whatsapp.baileys.service.ts
   }
 
   public get connectionStatus() {
@@ -713,10 +688,7 @@ export class BaileysStartupService extends ChannelStartupService {
             const proxyUrl = 'http://' + proxyUrls[rand];
             options = {
               agent: makeProxyAgent(proxyUrl),
-<<<<<<<< HEAD:src/api/services/whatsapp/whatsapp.baileys.service.ts
-========
               fetchAgent: makeProxyAgent(proxyUrl),
->>>>>>>> upstream/main:src/api/services/channels/whatsapp.baileys.service.ts
             };
           } catch (error) {
             this.localProxy.enabled = false;
@@ -724,10 +696,7 @@ export class BaileysStartupService extends ChannelStartupService {
         } else {
           options = {
             agent: makeProxyAgent(this.localProxy.proxy),
-<<<<<<<< HEAD:src/api/services/whatsapp/whatsapp.baileys.service.ts
-========
             fetchAgent: makeProxyAgent(this.localProxy.proxy),
->>>>>>>> upstream/main:src/api/services/channels/whatsapp.baileys.service.ts
           };
         }
       }
@@ -1110,7 +1079,6 @@ export class BaileysStartupService extends ChannelStartupService {
 
           if (received.messageStubParameters && received.messageStubParameters[0] === 'Message absent from node') {
             this.logger.info('Recovering message lost');
-<<<<<<<< HEAD:src/api/services/whatsapp/whatsapp.baileys.service.ts
             setTimeout(
               (received: proto.IWebMessageInfo) => {
                 if (received?.messageStubParameters) {
@@ -1128,25 +1096,6 @@ export class BaileysStartupService extends ChannelStartupService {
             received.message?.protocolMessage ||
             received.message?.pollUpdateMessage
             //!received?.message
-========
-
-            await this.messagesLostCache.set(received.key.id, received);
-            continue;
-          }
-
-          const retryCache = (await this.messagesLostCache.get(received.key.id)) || null;
-
-          if (retryCache) {
-            this.logger.info('Recovered message lost');
-            await this.messagesLostCache.delete(received.key.id);
-          }
-
-          if (
-            (type !== 'notify' && type !== 'append') ||
-            received.message?.protocolMessage ||
-            received.message?.pollUpdateMessage ||
-            !received?.message
->>>>>>>> upstream/main:src/api/services/channels/whatsapp.baileys.service.ts
           ) {
             this.logger.verbose('message rejected');
             continue;
@@ -2389,82 +2338,6 @@ export class BaileysStartupService extends ChannelStartupService {
     return await this.sendMessageWithTyping(data.number, { ...generate.message }, data?.options, isChatwoot);
   }
 
-  // public async processAudio(audio: string, number: string) {
-  //   this.logger.verbose('Processing audio');
-  //   let tempAudioPath: string;
-  //   let outputAudio: string;
-
-  //   number = number.replace(/\D/g, '');
-  //   const hash = `${number}-${new Date().getTime()}`;
-  //   this.logger.verbose('Hash to audio name: ' + hash);
-
-  //   if (isURL(audio)) {
-  //     this.logger.verbose('Audio is url');
-
-  //     outputAudio = `${join(this.storePath, 'temp', `${hash}.ogg`)}`;
-  //     tempAudioPath = `${join(this.storePath, 'temp', `temp-${hash}.mp3`)}`;
-
-  //     this.logger.verbose('Output audio path: ' + outputAudio);
-  //     this.logger.verbose('Temp audio path: ' + tempAudioPath);
-
-  //     const timestamp = new Date().getTime();
-  //     const url = `${audio}?timestamp=${timestamp}`;
-
-  //     this.logger.verbose('Including timestamp in url: ' + url);
-
-  //     let config: any = {
-  //       responseType: 'arraybuffer',
-  //     };
-
-  //     if (this.localProxy.enabled) {
-  //       config = {
-  //         ...config,
-  //         httpsAgent: makeProxyAgent(this.localProxy.proxy),
-  //       };
-  //     }
-
-  //     const response = await axios.get(url, config);
-  //     this.logger.verbose('Getting audio from url');
-
-  //     fs.writeFileSync(tempAudioPath, response.data);
-  //   } else {
-  //     this.logger.verbose('Audio is base64');
-
-  //     outputAudio = `${join(this.storePath, 'temp', `${hash}.ogg`)}`;
-  //     tempAudioPath = `${join(this.storePath, 'temp', `temp-${hash}.mp3`)}`;
-
-  //     this.logger.verbose('Output audio path: ' + outputAudio);
-  //     this.logger.verbose('Temp audio path: ' + tempAudioPath);
-
-  //     const audioBuffer = Buffer.from(audio, 'base64');
-  //     fs.writeFileSync(tempAudioPath, audioBuffer);
-  //     this.logger.verbose('Temp audio created');
-  //   }
-
-  //   this.logger.verbose('Converting audio to mp4');
-  //   return new Promise((resolve, reject) => {
-  //     // This fix was suggested by @PurpShell
-  //     ffmpeg.setFfmpegPath(ffmpegPath.path);
-
-  //     ffmpeg()
-  //       .input(tempAudioPath)
-  //       .outputFormat('ogg')
-  //       .noVideo()
-  //       .audioCodec('libopus')
-  //       .save(outputAudio)
-  //       .on('error', function (error) {
-  //         console.log('error', error);
-  //         fs.unlinkSync(tempAudioPath);
-  //         if (error) reject(error);
-  //       })
-  //       .on('end', async function () {
-  //         fs.unlinkSync(tempAudioPath);
-  //         resolve(outputAudio);
-  //       })
-  //       .run();
-  //   });
-  // }
-
   public async processAudio(audio: string, number: string) {
     this.logger.verbose('Processing audio');
     let tempAudioPath: string;
@@ -2855,6 +2728,45 @@ export class BaileysStartupService extends ChannelStartupService {
       throw new InternalServerErrorException({
         archived: false,
         message: ['An error occurred while archiving the chat. Open a calling.', error.toString()],
+      });
+    }
+  }
+
+  public async markChatUnread(data: MarkChatUnreadDto) {
+    this.logger.verbose('Marking chat as unread');
+
+    try {
+      let last_message = data.lastMessage;
+      let number = data.chat;
+
+      if (!last_message && number) {
+        last_message = await this.getLastMessage(number);
+      } else {
+        last_message = data.lastMessage;
+        last_message.messageTimestamp = last_message?.messageTimestamp ?? Date.now();
+        number = last_message?.key?.remoteJid;
+      }
+
+      if (!last_message || Object.keys(last_message).length === 0) {
+        throw new NotFoundException('Last message not found');
+      }
+
+      await this.client.chatModify(
+        {
+          markRead: false,
+          lastMessages: [last_message],
+        },
+        this.createJid(number),
+      );
+
+      return {
+        chatId: number,
+        markedChatUnread: true,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException({
+        markedChatUnread: false,
+        message: ['An error occurred while marked unread the chat. Open a calling.', error.toString()],
       });
     }
   }

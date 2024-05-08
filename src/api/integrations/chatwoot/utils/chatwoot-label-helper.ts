@@ -1,6 +1,6 @@
 import ChatwootClient, { conversation } from '@figuro/chatwoot-sdk';
-import { Label } from '@whiskeysockets/baileys/lib/Types/Label';
-import { LabelAssociation } from '@whiskeysockets/baileys/lib/Types/LabelAssociation';
+import { Label } from 'baileys/lib/Types/Label';
+import { LabelAssociation } from 'baileys/lib/Types/LabelAssociation';
 
 import { Logger } from '../../../../config/logger.config';
 import { InstanceDto } from '../../../dto/instance.dto';
