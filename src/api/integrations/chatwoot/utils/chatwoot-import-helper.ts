@@ -186,6 +186,7 @@ class ChatwootImport {
             phoneNumbersWithTimestamp,
             messagesByPhoneNumber,
           );
+          await this.delay(15000);
 
           // inserting messages in chatwoot db
           let sqlInsertMsg = `INSERT INTO messages
@@ -237,6 +238,7 @@ class ChatwootImport {
               sqlInsertMsg = sqlInsertMsg.slice(0, -1);
             }
             totalMessagesImported += (await pgClient.query(sqlInsertMsg, bindInsertMsg))?.rowCount ?? 0;
+            await this.delay(15000);
           }
         }
         messagesChunk = this.sliceIntoChunks(messagesOrdered, batchSize);
@@ -466,6 +468,10 @@ class ChatwootImport {
 
   public isIgnorePhoneNumber(remoteJid: string) {
     return this.isGroup(remoteJid) || remoteJid === 'status@broadcast' || remoteJid === '0@s.whatsapp.net';
+  }
+
+  public delay(delayInMs: number) {
+    return new Promise((resolve) => setTimeout(resolve, delayInMs));
   }
 }
 
